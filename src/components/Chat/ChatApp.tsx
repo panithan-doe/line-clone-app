@@ -73,13 +73,7 @@
 //   //   );
 //   // }
 
-
 //   // Mock data
-
-  
-
-  
-    
 
 //   return (
 //     <div className="h-screen flex bg-gray-100">
@@ -90,7 +84,7 @@
 //         onSignOut={signOut}
 //         user={user}
 //       />
-      
+
 //       <div className="flex-1 flex flex-col">
 //         {selectedRoom ? (
 //           <ChatRoom
@@ -119,24 +113,23 @@
 //   );
 // }
 
-
-import React, { useState, useEffect } from 'react';
-import { MessageCircle } from 'lucide-react';
-import { ChatSidebar } from './ChatSidebar';
-import { ChatRoom } from './ChatRoom';
-import { client } from '../../lib/amplify';
-import type { ChatRoom as ChatRoomType, Message, User } from '../../types';
+import { useState, useEffect } from "react";
+import { MessageCircle } from "lucide-react";
+import { ChatSidebar } from "./ChatSidebar";
+import { ChatRoom } from "./ChatRoom";
+// import { client } from '../../lib/amplify';
+import type { ChatRoom as ChatRoomType, Message, User } from "../../types";
 
 export function ChatApp() {
   // Mock current user data
   const mockUser: User = {
-    id: 'current-user',
-    email: 'john.doe@example.com',
-    nickname: 'John Doe',
-    avatar: '',
-    status: 'online',
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-15T10:00:00Z'
+    id: "current-user",
+    email: "john.doe@example.com",
+    nickname: "John Doe",
+    avatar: "",
+    status: "online",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-15T10:00:00Z",
   };
 
   const [user] = useState<User>(mockUser);
@@ -148,282 +141,283 @@ export function ChatApp() {
   // Mock data
   const mockChatRooms: ChatRoomType[] = [
     {
-      id: 'room-1',
-      name: 'General Chat',
-      type: 'group',
-      description: 'General discussion for everyone',
-      avatar: '',
-      lastMessage: 'Hey everyone! How are you doing today?',
-      lastMessageAt: '2024-01-15T10:30:00Z',
-      createdAt: '2024-01-10T09:00:00Z',
-      updatedAt: '2024-01-15T10:30:00Z'
+      id: "room-1",
+      name: "General Chat",
+      type: "group",
+      description: "General discussion for everyone",
+      avatar: "",
+      lastMessage: "Hey everyone! How are you doing today?",
+      lastMessageAt: "2024-01-15T10:30:00Z",
+      createdAt: "2024-01-10T09:00:00Z",
+      updatedAt: "2024-01-15T10:30:00Z",
     },
     {
-      id: 'room-2',
-      name: 'John Smith',
-      type: 'private',
-      description: '',
-      avatar: '',
-      lastMessage: 'Thanks for the help yesterday!',
-      lastMessageAt: '2024-01-15T09:15:00Z',
-      createdAt: '2024-01-12T14:20:00Z',
-      updatedAt: '2024-01-15T09:15:00Z'
+      id: "room-2",
+      name: "John Smith",
+      type: "private",
+      description: "",
+      avatar: "",
+      lastMessage: "Thanks for the help yesterday!",
+      lastMessageAt: "2024-01-15T09:15:00Z",
+      createdAt: "2024-01-12T14:20:00Z",
+      updatedAt: "2024-01-15T09:15:00Z",
     },
     {
-      id: 'room-3',
-      name: 'Project Team',
-      type: 'group',
-      description: 'Team discussion for the current project',
-      avatar: '',
-      lastMessage: 'The deadline has been moved to next Friday',
-      lastMessageAt: '2024-01-15T08:45:00Z',
-      createdAt: '2024-01-08T11:30:00Z',
-      updatedAt: '2024-01-15T08:45:00Z'
+      id: "room-3",
+      name: "Project Team",
+      type: "group",
+      description: "Team discussion for the current project",
+      avatar: "",
+      lastMessage: "The deadline has been moved to next Friday",
+      lastMessageAt: "2024-01-15T08:45:00Z",
+      createdAt: "2024-01-08T11:30:00Z",
+      updatedAt: "2024-01-15T08:45:00Z",
     },
     {
-      id: 'room-4',
-      name: 'Sarah Johnson',
-      type: 'private',
-      description: '',
-      avatar: '',
-      lastMessage: 'See you at the meeting tomorrow',
-      lastMessageAt: '2024-01-14T16:20:00Z',
-      createdAt: '2024-01-11T13:45:00Z',
-      updatedAt: '2024-01-14T16:20:00Z'
+      id: "room-4",
+      name: "Sarah Johnson",
+      type: "private",
+      description: "",
+      avatar: "",
+      lastMessage: "See you at the meeting tomorrow",
+      lastMessageAt: "2024-01-14T16:20:00Z",
+      createdAt: "2024-01-11T13:45:00Z",
+      updatedAt: "2024-01-14T16:20:00Z",
     },
     {
-      id: 'room-5',
-      name: 'Tech Support',
-      type: 'group',
-      description: 'Technical support and IT discussions',
-      avatar: '',
-      lastMessage: 'Server maintenance completed successfully',
-      lastMessageAt: '2024-01-14T12:10:00Z',
-      createdAt: '2024-01-05T10:15:00Z',
-      updatedAt: '2024-01-14T12:10:00Z'
-    }
+      id: "room-5",
+      name: "Tech Support",
+      type: "group",
+      description: "Technical support and IT discussions",
+      avatar: "",
+      lastMessage: "Server maintenance completed successfully",
+      lastMessageAt: "2024-01-14T12:10:00Z",
+      createdAt: "2024-01-05T10:15:00Z",
+      updatedAt: "2024-01-14T12:10:00Z",
+    },
   ];
 
   const mockMessages: { [key: string]: Message[] } = {
-    'room-1': [
+    "room-1": [
       {
-        id: 'msg-1',
-        content: 'Good morning everyone!',
-        type: 'text',
-        chatRoomId: 'room-1',
-        senderId: 'user-1',
-        senderNickname: 'Alice Wilson',
+        id: "msg-1",
+        content: "Good morning everyone!",
+        type: "text",
+        chatRoomId: "room-1",
+        senderId: "user-1",
+        senderNickname: "Alice Wilson",
         isRead: true,
-        createdAt: '2024-01-15T09:00:00Z',
-        updatedAt: '2024-01-15T09:00:00Z'
+        createdAt: "2024-01-15T09:00:00Z",
+        updatedAt: "2024-01-15T09:00:00Z",
       },
       {
-        id: 'msg-2',
-        content: 'Morning Alice! Ready for the new week?',
-        type: 'text',
-        chatRoomId: 'room-1',
-        senderId: 'user-2',
-        senderNickname: 'Bob Chen',
+        id: "msg-2",
+        content: "Morning Alice! Ready for the new week?",
+        type: "text",
+        chatRoomId: "room-1",
+        senderId: "user-2",
+        senderNickname: "Bob Chen",
         isRead: true,
-        createdAt: '2024-01-15T09:05:00Z',
-        updatedAt: '2024-01-15T09:05:00Z'
+        createdAt: "2024-01-15T09:05:00Z",
+        updatedAt: "2024-01-15T09:05:00Z",
       },
       {
-        id: 'msg-3',
-        content: 'Absolutely! I have some exciting updates to share about the project.',
-        type: 'text',
-        chatRoomId: 'room-1',
-        senderId: 'user-1',
-        senderNickname: 'Alice Wilson',
+        id: "msg-3",
+        content:
+          "Absolutely! I have some exciting updates to share about the project.",
+        type: "text",
+        chatRoomId: "room-1",
+        senderId: "user-1",
+        senderNickname: "Alice Wilson",
         isRead: true,
-        createdAt: '2024-01-15T09:10:00Z',
-        updatedAt: '2024-01-15T09:10:00Z'
+        createdAt: "2024-01-15T09:10:00Z",
+        updatedAt: "2024-01-15T09:10:00Z",
       },
       {
-        id: 'msg-4',
-        content: 'Hey everyone! How are you doing today?',
-        type: 'text',
-        chatRoomId: 'room-1',
-        senderId: 'user-3',
-        senderNickname: 'Carol Davis',
+        id: "msg-4",
+        content: "Hey everyone! How are you doing today?",
+        type: "text",
+        chatRoomId: "room-1",
+        senderId: "user-3",
+        senderNickname: "Carol Davis",
         isRead: false,
-        createdAt: '2024-01-15T10:30:00Z',
-        updatedAt: '2024-01-15T10:30:00Z'
-      }
+        createdAt: "2024-01-15T10:30:00Z",
+        updatedAt: "2024-01-15T10:30:00Z",
+      },
     ],
-    'room-2': [
+    "room-2": [
       {
-        id: 'msg-5',
-        content: 'Hi there! How did the presentation go?',
-        type: 'text',
-        chatRoomId: 'room-2',
-        senderId: 'user-4',
-        senderNickname: 'John Smith',
+        id: "msg-5",
+        content: "Hi there! How did the presentation go?",
+        type: "text",
+        chatRoomId: "room-2",
+        senderId: "user-4",
+        senderNickname: "John Smith",
         isRead: true,
-        createdAt: '2024-01-15T08:30:00Z',
-        updatedAt: '2024-01-15T08:30:00Z'
+        createdAt: "2024-01-15T08:30:00Z",
+        updatedAt: "2024-01-15T08:30:00Z",
       },
       {
-        id: 'msg-6',
-        content: 'It went really well! The client loved our proposal.',
-        type: 'text',
-        chatRoomId: 'room-2',
+        id: "msg-6",
+        content: "It went really well! The client loved our proposal.",
+        type: "text",
+        chatRoomId: "room-2",
         senderId: user.id,
         senderNickname: user.nickname,
         isRead: true,
-        createdAt: '2024-01-15T08:45:00Z',
-        updatedAt: '2024-01-15T08:45:00Z'
+        createdAt: "2024-01-15T08:45:00Z",
+        updatedAt: "2024-01-15T08:45:00Z",
       },
       {
-        id: 'msg-7',
-        content: 'That\'s fantastic! I knew you\'d nail it.',
-        type: 'text',
-        chatRoomId: 'room-2',
-        senderId: 'user-4',
-        senderNickname: 'John Smith',
+        id: "msg-7",
+        content: "That's fantastic! I knew you'd nail it.",
+        type: "text",
+        chatRoomId: "room-2",
+        senderId: "user-4",
+        senderNickname: "John Smith",
         isRead: true,
-        createdAt: '2024-01-15T09:00:00Z',
-        updatedAt: '2024-01-15T09:00:00Z'
+        createdAt: "2024-01-15T09:00:00Z",
+        updatedAt: "2024-01-15T09:00:00Z",
       },
       {
-        id: 'msg-8',
-        content: 'Thanks for the help yesterday!',
-        type: 'text',
-        chatRoomId: 'room-2',
-        senderId: 'user-4',
-        senderNickname: 'John Smith',
+        id: "msg-8",
+        content: "Thanks for the help yesterday!",
+        type: "text",
+        chatRoomId: "room-2",
+        senderId: "user-4",
+        senderNickname: "John Smith",
         isRead: false,
-        createdAt: '2024-01-15T09:15:00Z',
-        updatedAt: '2024-01-15T09:15:00Z'
-      }
+        createdAt: "2024-01-15T09:15:00Z",
+        updatedAt: "2024-01-15T09:15:00Z",
+      },
     ],
-    'room-3': [
+    "room-3": [
       {
-        id: 'msg-9',
-        content: 'Team meeting scheduled for 2 PM today',
-        type: 'text',
-        chatRoomId: 'room-3',
-        senderId: 'user-5',
-        senderNickname: 'Mike Johnson',
+        id: "msg-9",
+        content: "Team meeting scheduled for 2 PM today",
+        type: "text",
+        chatRoomId: "room-3",
+        senderId: "user-5",
+        senderNickname: "Mike Johnson",
         isRead: true,
-        createdAt: '2024-01-15T08:00:00Z',
-        updatedAt: '2024-01-15T08:00:00Z'
+        createdAt: "2024-01-15T08:00:00Z",
+        updatedAt: "2024-01-15T08:00:00Z",
       },
       {
-        id: 'msg-10',
-        content: 'Got it! I\'ll be there.',
-        type: 'text',
-        chatRoomId: 'room-3',
-        senderId: 'user-6',
-        senderNickname: 'Emma Brown',
+        id: "msg-10",
+        content: "Got it! I'll be there.",
+        type: "text",
+        chatRoomId: "room-3",
+        senderId: "user-6",
+        senderNickname: "Emma Brown",
         isRead: true,
-        createdAt: '2024-01-15T08:15:00Z',
-        updatedAt: '2024-01-15T08:15:00Z'
+        createdAt: "2024-01-15T08:15:00Z",
+        updatedAt: "2024-01-15T08:15:00Z",
       },
       {
-        id: 'msg-11',
-        content: 'The deadline has been moved to next Friday',
-        type: 'text',
-        chatRoomId: 'room-3',
-        senderId: 'user-5',
-        senderNickname: 'Mike Johnson',
+        id: "msg-11",
+        content: "The deadline has been moved to next Friday",
+        type: "text",
+        chatRoomId: "room-3",
+        senderId: "user-5",
+        senderNickname: "Mike Johnson",
         isRead: false,
-        createdAt: '2024-01-15T08:45:00Z',
-        updatedAt: '2024-01-15T08:45:00Z'
-      }
+        createdAt: "2024-01-15T08:45:00Z",
+        updatedAt: "2024-01-15T08:45:00Z",
+      },
     ],
-    'room-4': [
+    "room-4": [
       {
-        id: 'msg-12',
-        content: 'How was your weekend?',
-        type: 'text',
-        chatRoomId: 'room-4',
-        senderId: 'user-7',
-        senderNickname: 'Sarah Johnson',
+        id: "msg-12",
+        content: "How was your weekend?",
+        type: "text",
+        chatRoomId: "room-4",
+        senderId: "user-7",
+        senderNickname: "Sarah Johnson",
         isRead: true,
-        createdAt: '2024-01-14T15:30:00Z',
-        updatedAt: '2024-01-14T15:30:00Z'
+        createdAt: "2024-01-14T15:30:00Z",
+        updatedAt: "2024-01-14T15:30:00Z",
       },
       {
-        id: 'msg-13',
-        content: 'It was great! Went hiking with some friends.',
-        type: 'text',
-        chatRoomId: 'room-4',
+        id: "msg-13",
+        content: "It was great! Went hiking with some friends.",
+        type: "text",
+        chatRoomId: "room-4",
         senderId: user.id,
         senderNickname: user.nickname,
         isRead: true,
-        createdAt: '2024-01-14T15:45:00Z',
-        updatedAt: '2024-01-14T15:45:00Z'
+        createdAt: "2024-01-14T15:45:00Z",
+        updatedAt: "2024-01-14T15:45:00Z",
       },
       {
-        id: 'msg-14',
-        content: 'Sounds fun! I need to get outdoors more.',
-        type: 'text',
-        chatRoomId: 'room-4',
-        senderId: 'user-7',
-        senderNickname: 'Sarah Johnson',
+        id: "msg-14",
+        content: "Sounds fun! I need to get outdoors more.",
+        type: "text",
+        chatRoomId: "room-4",
+        senderId: "user-7",
+        senderNickname: "Sarah Johnson",
         isRead: true,
-        createdAt: '2024-01-14T16:00:00Z',
-        updatedAt: '2024-01-14T16:00:00Z'
+        createdAt: "2024-01-14T16:00:00Z",
+        updatedAt: "2024-01-14T16:00:00Z",
       },
       {
-        id: 'msg-15',
-        content: 'See you at the meeting tomorrow',
-        type: 'text',
-        chatRoomId: 'room-4',
-        senderId: 'user-7',
-        senderNickname: 'Sarah Johnson',
+        id: "msg-15",
+        content: "See you at the meeting tomorrow",
+        type: "text",
+        chatRoomId: "room-4",
+        senderId: "user-7",
+        senderNickname: "Sarah Johnson",
         isRead: false,
-        createdAt: '2024-01-14T16:20:00Z',
-        updatedAt: '2024-01-14T16:20:00Z'
-      }
+        createdAt: "2024-01-14T16:20:00Z",
+        updatedAt: "2024-01-14T16:20:00Z",
+      },
     ],
-    'room-5': [
+    "room-5": [
       {
-        id: 'msg-16',
-        content: 'Server maintenance scheduled for tonight',
-        type: 'text',
-        chatRoomId: 'room-5',
-        senderId: 'user-8',
-        senderNickname: 'Tech Admin',
+        id: "msg-16",
+        content: "Server maintenance scheduled for tonight",
+        type: "text",
+        chatRoomId: "room-5",
+        senderId: "user-8",
+        senderNickname: "Tech Admin",
         isRead: true,
-        createdAt: '2024-01-14T10:00:00Z',
-        updatedAt: '2024-01-14T10:00:00Z'
+        createdAt: "2024-01-14T10:00:00Z",
+        updatedAt: "2024-01-14T10:00:00Z",
       },
       {
-        id: 'msg-17',
-        content: 'How long will it take?',
-        type: 'text',
-        chatRoomId: 'room-5',
-        senderId: 'user-9',
-        senderNickname: 'Dave Wilson',
+        id: "msg-17",
+        content: "How long will it take?",
+        type: "text",
+        chatRoomId: "room-5",
+        senderId: "user-9",
+        senderNickname: "Dave Wilson",
         isRead: true,
-        createdAt: '2024-01-14T10:15:00Z',
-        updatedAt: '2024-01-14T10:15:00Z'
+        createdAt: "2024-01-14T10:15:00Z",
+        updatedAt: "2024-01-14T10:15:00Z",
       },
       {
-        id: 'msg-18',
-        content: 'Approximately 2 hours, from 11 PM to 1 AM',
-        type: 'text',
-        chatRoomId: 'room-5',
-        senderId: 'user-8',
-        senderNickname: 'Tech Admin',
+        id: "msg-18",
+        content: "Approximately 2 hours, from 11 PM to 1 AM",
+        type: "text",
+        chatRoomId: "room-5",
+        senderId: "user-8",
+        senderNickname: "Tech Admin",
         isRead: true,
-        createdAt: '2024-01-14T10:30:00Z',
-        updatedAt: '2024-01-14T10:30:00Z'
+        createdAt: "2024-01-14T10:30:00Z",
+        updatedAt: "2024-01-14T10:30:00Z",
       },
       {
-        id: 'msg-19',
-        content: 'Server maintenance completed successfully',
-        type: 'text',
-        chatRoomId: 'room-5',
-        senderId: 'user-8',
-        senderNickname: 'Tech Admin',
+        id: "msg-19",
+        content: "Server maintenance completed successfully",
+        type: "text",
+        chatRoomId: "room-5",
+        senderId: "user-8",
+        senderNickname: "Tech Admin",
         isRead: false,
-        createdAt: '2024-01-14T12:10:00Z',
-        updatedAt: '2024-01-14T12:10:00Z'
-      }
-    ]
+        createdAt: "2024-01-14T12:10:00Z",
+        updatedAt: "2024-01-14T12:10:00Z",
+      },
+    ],
   };
 
   useEffect(() => {
@@ -446,7 +440,7 @@ export function ChatApp() {
 
   const signOut = () => {
     // Mock sign out function
-    console.log('Signing out...');
+    console.log("Signing out...");
     // In a real app, you'd handle sign out logic here
   };
 
@@ -457,25 +451,31 @@ export function ChatApp() {
       const newMessage: Message = {
         id: `msg-${Date.now()}`,
         content,
-        type: 'text',
+        type: "text",
         chatRoomId: selectedRoom.id,
         senderId: user.id,
         senderNickname: user.nickname,
         isRead: false,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
 
-      setMessages(prev => [...prev, newMessage]);
+      setMessages((prev) => [...prev, newMessage]);
 
       // Update the last message in the chat room
-      setChatRooms(prev => prev.map(room => 
-        room.id === selectedRoom.id 
-          ? { ...room, lastMessage: content, lastMessageAt: new Date().toISOString() }
-          : room
-      ));
+      setChatRooms((prev) =>
+        prev.map((room) =>
+          room.id === selectedRoom.id
+            ? {
+                ...room,
+                lastMessage: content,
+                lastMessageAt: new Date().toISOString(),
+              }
+            : room
+        )
+      );
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
     }
   };
 
@@ -496,7 +496,7 @@ export function ChatApp() {
         onSignOut={signOut}
         user={user}
       />
-      
+
       <div className="flex-1 flex flex-col">
         {selectedRoom ? (
           <ChatRoom
@@ -514,9 +514,7 @@ export function ChatApp() {
               <h2 className="text-2xl font-semibold text-gray-800 mb-2">
                 Welcome to LINE Clone
               </h2>
-              <p className="text-gray-600">
-                Select a chat to start messaging
-              </p>
+              <p className="text-gray-600">Select a chat to start messaging</p>
             </div>
           </div>
         )}
