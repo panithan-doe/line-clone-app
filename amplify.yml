@@ -7,7 +7,8 @@ backend:
         # 1. Set the Node.js version for the build
         - nvm use 20
         # 2. Install dependencies with the correct Node.js version
-        - npm ci --cache .npm --prefer-offline
+        # - npm ci --cache .npm --prefer-offline
+        - npm install --cache .npm --prefer-offline
     build:
       commands:
         - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
@@ -20,7 +21,7 @@ frontend:
     preBuild:
       commands:
         - nvm use 20
-        - npm ci
+        - npm install
     build:
       commands:
         - npm run build
