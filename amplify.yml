@@ -1,15 +1,27 @@
 version: 1
 backend:
   phases:
-    build:
-      runtime-version: 20
+    # Use preBuild to set up the environment
+    preBuild:
       commands:
+        # 1. Set the Node.js version for the build
+        - nvm use 20
+        # 2. Install dependencies with the correct Node.js version
         - npm ci --cache .npm --prefer-offline
+    build:
+      commands:
         - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+  cache:
+    paths:
+      - .npm/**/*
+
 frontend:
   phases:
+    preBuild:
+      commands:
+        - nvm use 20
+        - npm ci
     build:
-      runtime-version: 20
       commands:
         - npm run build
   artifacts:
@@ -18,5 +30,4 @@ frontend:
       - '**/*'
   cache:
     paths:
-      - .npm/**/*
       - node_modules/**/*
