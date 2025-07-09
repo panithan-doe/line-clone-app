@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { signIn } from 'aws-amplify/auth';
 import { MessageCircle, Mail, Lock } from 'lucide-react';
-import { SignUpForm } from './SignupForm';
+import { SignUpForm } from './SignUpForm';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
