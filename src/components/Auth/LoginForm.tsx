@@ -1,7 +1,26 @@
-import React from 'react';
-import { MessageCircle, Mail, Lock, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { signIn } from 'aws-amplify/auth';
+import { MessageCircle, Mail, Lock } from 'lucide-react';
+import { SignUpForm } from './SignupForm';
 
 export function LoginForm() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showSignUp, setShowSignUp] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSignIn = async () => {
+    try {
+      await signIn({ username: email, password });
+      window.location.reload(); // refresh AuthWrapper
+    } catch (err: any) {
+      setError(err.message || 'Sign in failed');
+    }
+  };
+
+  // Show sign-up form if toggled
+  if (showSignUp) return <SignUpForm goBack={() => setShowSignUp(false)} />;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-400 via-green-500 to-green-600 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
@@ -19,6 +38,8 @@ export function LoginForm() {
             <input
               type="email"
               placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
             />
           </div>
@@ -28,17 +49,27 @@ export function LoginForm() {
             <input
               type="password"
               placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
             />
           </div>
 
-          <button className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95">
+          {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+
+          <button
+            onClick={handleSignIn}
+            className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95"
+          >
             Sign In
           </button>
 
           <div className="text-center">
             <p className="text-gray-600 mb-4">Don't have an account?</p>
-            <button className="text-green-500 font-semibold hover:text-green-600 transition-colors">
+            <button
+              onClick={() => setShowSignUp(true)}
+              className="text-green-500 font-semibold hover:text-green-600 transition-colors"
+            >
               Create Account
             </button>
           </div>

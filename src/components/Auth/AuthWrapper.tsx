@@ -1,24 +1,38 @@
-// import React from 'react';
-// import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
-// import { LoginForm } from './LoginForm';
-// import { ChatApp } from '../Chat/ChatApp';
-// import '@aws-amplify/ui-react/styles.css';
+import React, { useEffect, useState } from 'react';
+import { getCurrentUser } from 'aws-amplify/auth';
+import { LoginForm } from './LoginForm';
+import { ChatApp } from '../Chat/ChatApp';
 
-// export function AuthWrapper() {
-//   const { authStatus } = useAuthenticator();
+export function AuthWrapper() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-//   if (authStatus === 'authenticated') {
-//     return <ChatApp />;
-//   }
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
 
-//   return (
-//     <Authenticator
-//       components={{
-//         SignIn: LoginForm,
-//       }}
-//       hideSignUp={false}
-//     >
-//       <ChatApp />
-//     </Authenticator>
-//   );
-// }
+  const checkAuthStatus = async () => {
+    try {
+      await getCurrentUser();
+      setIsAuthenticated(true);
+    } catch (error) {
+      setIsAuthenticated(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500"></div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <ChatApp />;
+  }
+
+  return <LoginForm />;
+}
