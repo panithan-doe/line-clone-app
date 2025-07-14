@@ -46,10 +46,10 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
       await confirmSignUp({ username: email, confirmationCode: code });
       console.log('✅ Sign up confirmed');
 
-      // Step 2: Show success message and go back to login
+      // Step 2: Show success message and reload to trigger AuthWrapper
       console.log('✅ User registration completed');
-      alert('Registration successful! Please sign in with your credentials.');
-      goBack();
+      alert('Registration successful! You are now signed in.');
+      window.location.reload(); // Reload to trigger AuthWrapper authentication check
       
     } catch (err: any) {
       console.error('❌ HandleConfirm error:', err);

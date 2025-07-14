@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signIn } from 'aws-amplify/auth';
+import { signIn, signOut } from 'aws-amplify/auth';
 import { MessageCircle, Mail, Lock } from 'lucide-react';
 import { SignUpForm } from './SignUpForm';
 
@@ -11,9 +11,19 @@ export function LoginForm() {
 
   const handleSignIn = async () => {
     try {
+      // First, try to sign out any existing session to ensure clean state
+      try {
+        await signOut();
+      } catch (signOutError) {
+        // Ignore sign out errors if no user is signed in
+        console.log('No user to sign out or sign out failed:', signOutError);
+      }
+      
+      // Now attempt to sign in with clean state
       await signIn({ username: email, password });
       window.location.reload(); // refresh AuthWrapper
     } catch (err: any) {
+      console.error('Sign in error:', err);
       setError(err.message || 'Sign in failed');
     }
   };

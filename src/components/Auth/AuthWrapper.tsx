@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchUserAttributes, getCurrentUser } from 'aws-amplify/auth';
+import { fetchUserAttributes, getCurrentUser, signOut } from 'aws-amplify/auth';
 import { generateClient } from 'aws-amplify/data';
 import { LoginForm } from './LoginForm';
 import { ChatApp } from '../Chat/ChatApp';
@@ -19,7 +19,7 @@ export function AuthWrapper() {
       client = generateClient<Schema>();
     }
     checkAuthStatus();
-  }, []);
+  }, []); // เพิ่ม empty dependency array เพื่อรันครั้งเดียว
 
   const checkAuthStatus = async () => {
     try {
@@ -38,6 +38,12 @@ export function AuthWrapper() {
       setIsAuthenticated(true);
     } catch (error) {
       console.log('User not authenticated, showing login form');
+      // Clear any inconsistent auth state
+      try {
+        await signOut();
+      } catch (signOutError) {
+        console.log('Sign out during auth check failed:', signOutError);
+      }
       setIsAuthenticated(false);
     } finally {
       setLoading(false);
@@ -51,29 +57,47 @@ export function AuthWrapper() {
         client = generateClient<Schema>();
       }
 
-      // Try to get the user from our database
-      const { data: users } = await client.models.User.list({
-        filter: {
-          email: {
-            eq: cognitoUser.attributes.email
-          }
-        }
-      });
-
-      // If user doesn't exist in our database, create them
-      if (!users || users.length === 0) {
-        console.log('User not found in database, creating...');
-        await client.models.User.create({
-          email: cognitoUser.attributes.email,
-          nickname: cognitoUser.attributes.nickname || cognitoUser.attributes.email,
-          status: 'online',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+      // Try to get the user from our database using email as identifier
+      try {
+        const { data: existingUser } = await client.models.User.get({
+          email: cognitoUser.attributes.email
         });
-        console.log('✅ User created in database');
-      } else {
-        console.log('✅ User already exists in database');
+
+        if (!existingUser) {
+          console.log('User not found in database, creating...');
+          await client.models.User.create({
+            email: cognitoUser.attributes.email,
+            nickname: cognitoUser.attributes.nickname || cognitoUser.attributes.email,
+            status: 'online',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+          console.log('✅ User created in database');
+        } else {
+          console.log('✅ User already exists in database');
+        }
+      } catch (getUserError: any) {
+        // If get fails, try to create - this handles the case where user might not exist
+        if (getUserError.message && getUserError.message.includes('not found')) {
+          console.log('User not found in database, creating...');
+          try {
+            await client.models.User.create({
+              email: cognitoUser.attributes.email,
+              nickname: cognitoUser.attributes.nickname || cognitoUser.attributes.email,
+              status: 'online',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+            console.log('✅ User created in database');
+          } catch (createError: any) {
+            // If creation fails due to duplicate, that's fine - user already exists
+            console.log('✅ User already exists (caught duplicate error)');
+          }
+        } else {
+          console.error('Error getting user:', getUserError);
+        }
       }
+      
     } catch (error) {
       console.error('Error ensuring user exists:', error);
       // Don't throw error here to avoid breaking the login flow

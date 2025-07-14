@@ -16,7 +16,8 @@ const schema = a.schema({
       allow.authenticated().to(['create', 'read']),
       // ให้ owner สามารถจัดการ record ของตัวเองได้
       allow.owner()
-    ]),
+    ])
+    .identifier(['email']),
 
   ChatRoom: a
     .model({
