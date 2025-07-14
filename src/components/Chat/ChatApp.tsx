@@ -62,7 +62,7 @@ export function ChatApp({ user }: ChatAppProps) {
       });
 
       if (memberships && memberships.length > 0) {
-        // Get the actual chat rooms
+        // Get the actual chat rooms with proper display names
         const roomPromises = memberships.map(async (membership) => {
           if (!membership.chatRoomId) return null;
           
@@ -73,7 +73,36 @@ export function ChatApp({ user }: ChatAppProps) {
               }
             }
           });
-          return rooms[0];
+          
+          const room = rooms[0];
+          if (!room) return null;
+          
+          // For private chats, get the other user's name
+          if (room.type === 'private') {
+            // Get all members of this chat room
+            const { data: allMembers } = await client.models.ChatRoomMember.list({
+              filter: {
+                chatRoomId: {
+                  eq: room.id ?? undefined
+                }
+              }
+            });
+            
+            // Find the other user (not current user)
+            const otherMember = allMembers.find(member => 
+              member.userId && member.userId !== user.attributes.email
+            );
+            
+            if (otherMember) {
+              // Use the other user's nickname for display
+              return {
+                ...room,
+                name: otherMember.userNickname || otherMember.userId
+              };
+            }
+          }
+          
+          return room;
         });
 
         const rooms = await Promise.all(roomPromises);
