@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MessageCircle, Plus, Settings, LogOut, Users, Search } from 'lucide-react';
+import { AddFriend } from './AddFriend';
 import type { ChatRoom, User } from '../../types';
 
 interface ChatSidebarProps {
@@ -8,10 +9,12 @@ interface ChatSidebarProps {
   onSelectRoom: (room: ChatRoom) => void;
   onSignOut: () => void;
   user: any;
+  onChatRoomsUpdate?: () => void;
 }
 
-export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, user }: ChatSidebarProps) {
+export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, user, onChatRoomsUpdate }: ChatSidebarProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAddFriend, setShowAddFriend] = useState(false);
 
   const filteredRooms = chatRooms.filter(room =>
     room.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -28,11 +31,14 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-800">Chats</h1>
-              <p className="text-sm text-gray-500">{user?.username || 'User'}</p>
+              <p className="text-sm text-gray-500">{user?.attributes?.nickname || user?.attributes?.email || 'User'}</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <button 
+              onClick={() => setShowAddFriend(true)}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            >
               <Plus className="w-5 h-5 text-gray-600" />
             </button>
             <button 
@@ -110,6 +116,20 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
           </div>
         )}
       </div>
+
+      {/* Add Friend Modal */}
+      {showAddFriend && (
+        <AddFriend
+          currentUser={user}
+          onClose={() => setShowAddFriend(false)}
+          onChatCreated={() => {
+            setShowAddFriend(false);
+            if (onChatRoomsUpdate) {
+              onChatRoomsUpdate();
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

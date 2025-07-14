@@ -9,8 +9,12 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'form' | 'confirm'>('form');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignUp = async () => {
+    setIsLoading(true);
+    setError('');
+    
     try {
       await signUp({
         username: email,
@@ -24,16 +28,34 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
       });
       setStep('confirm');
     } catch (err: any) {
+      console.error('SignUp error:', err);
       setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleConfirm = async () => {
+    setIsLoading(true);
+    setError('');
+    console.log('Starting handleConfirm');
+    
     try {
+      // Step 1: Confirm sign up
+      console.log('Step 1: Confirming sign up...');
       await confirmSignUp({ username: email, confirmationCode: code });
+      console.log('✅ Sign up confirmed');
+
+      // Step 2: Show success message and go back to login
+      console.log('✅ User registration completed');
+      alert('Registration successful! Please sign in with your credentials.');
       goBack();
+      
     } catch (err: any) {
-      setError(err.message);
+      console.error('❌ HandleConfirm error:', err);
+      setError(err.message || 'An error occurred during confirmation');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -59,6 +81,7 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -70,6 +93,7 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -81,6 +105,7 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -88,13 +113,20 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
 
               <button
                 onClick={handleSignUp}
-                className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95"
+                disabled={isLoading}
+                className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Sign Up
+                {isLoading ? 'Creating Account...' : 'Sign Up'}
               </button>
             </>
           ) : (
             <>
+              <div className="text-center mb-4">
+                <p className="text-gray-600">
+                  Please check your email for the confirmation code
+                </p>
+              </div>
+
               <div className="relative">
                 <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
@@ -103,6 +135,7 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -110,16 +143,18 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
 
               <button
                 onClick={handleConfirm}
-                className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95"
+                disabled={isLoading}
+                className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Confirm Code
+                {isLoading ? 'Confirming...' : 'Confirm Code'}
               </button>
             </>
           )}
 
           <button
             onClick={goBack}
-            className="w-full mt-4 text-green-500 font-semibold hover:text-green-600 transition-colors"
+            disabled={isLoading}
+            className="w-full mt-4 text-green-500 font-semibold hover:text-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Back to Login
           </button>

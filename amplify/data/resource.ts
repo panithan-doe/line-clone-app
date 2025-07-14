@@ -11,7 +11,12 @@ const schema = a.schema({
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
     })
-    .authorization((allow) => [allow.owner()]),
+    .authorization((allow) => [
+      // ให้ authenticated user สามารถสร้าง record ได้
+      allow.authenticated().to(['create', 'read']),
+      // ให้ owner สามารถจัดการ record ของตัวเองได้
+      allow.owner()
+    ]),
 
   ChatRoom: a
     .model({
