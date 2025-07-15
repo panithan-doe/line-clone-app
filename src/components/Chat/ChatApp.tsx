@@ -15,6 +15,7 @@ export function ChatApp({ user }: ChatAppProps) {
   const [chatRooms, setChatRooms] = useState<ChatRoomType[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
 
   // Helper function to convert Amplify data to Message type
   const convertToMessage = (amplifyMessage: any): Message => {
@@ -45,6 +46,88 @@ export function ChatApp({ user }: ChatAppProps) {
       createdAt: amplifyRoom.createdAt || now,
       updatedAt: amplifyRoom.updatedAt || now,
     };
+  };
+
+  // Fetch unread message counts for all chat rooms
+  const fetchUnreadCounts = async (roomIds: string[]) => {
+    try {
+      const counts: Record<string, number> = {};
+      
+      for (const roomId of roomIds) {
+        // Get the chat room to check if it's private or group
+        const { data: rooms } = await client.models.ChatRoom.list({
+          filter: {
+            id: {
+              eq: roomId
+            }
+          }
+        });
+        
+        const room = rooms[0];
+        if (!room) continue;
+        
+        if (room.type === 'private') {
+          // For private chats, use the existing isRead logic
+          const { data: unreadMessages } = await client.models.Message.list({
+            filter: {
+              chatRoomId: {
+                eq: roomId
+              },
+              senderId: {
+                ne: user.attributes.email // Not sent by current user
+              },
+              isRead: {
+                eq: false
+              }
+            }
+          });
+          
+          counts[roomId] = unreadMessages ? unreadMessages.length : 0;
+        } else {
+          // For group chats, check MessageReadStatus
+          const { data: allMessages } = await client.models.Message.list({
+            filter: {
+              chatRoomId: {
+                eq: roomId
+              },
+              senderId: {
+                ne: user.attributes.email // Not sent by current user
+              }
+            }
+          });
+          
+          if (allMessages) {
+            let unreadCount = 0;
+            for (const message of allMessages) {
+              if (message.id) {
+                // Check if current user has read this message
+                const { data: readStatus } = await client.models.MessageReadStatus.list({
+                  filter: {
+                    messageId: {
+                      eq: message.id
+                    },
+                    userId: {
+                      eq: user.attributes.email
+                    }
+                  }
+                });
+                
+                if (!readStatus || readStatus.length === 0) {
+                  unreadCount++;
+                }
+              }
+            }
+            counts[roomId] = unreadCount;
+          } else {
+            counts[roomId] = 0;
+          }
+        }
+      }
+      
+      setUnreadCounts(counts);
+    } catch (error) {
+      console.error('Error fetching unread counts:', error);
+    }
   };
 
   // Fetch chat rooms where the current user is a member
@@ -111,6 +194,10 @@ export function ChatApp({ user }: ChatAppProps) {
           .map(room => convertToChatRoom(room));
         
         setChatRooms(validRooms);
+        
+        // Fetch unread counts for all rooms
+        const roomIds = validRooms.map(room => room.id);
+        await fetchUnreadCounts(roomIds);
       }
     } catch (error) {
       console.error('Error fetching chat rooms:', error);
@@ -122,6 +209,98 @@ export function ChatApp({ user }: ChatAppProps) {
   useEffect(() => {
     fetchChatRooms();
   }, []);
+
+  // Mark messages as read
+  const markMessagesAsRead = async (roomId: string) => {
+    try {
+      // Get the chat room to check if it's private or group
+      const { data: rooms } = await client.models.ChatRoom.list({
+        filter: {
+          id: {
+            eq: roomId
+          }
+        }
+      });
+      
+      const room = rooms[0];
+      if (!room) return;
+      
+      if (room.type === 'private') {
+        // For private chats, use the existing isRead logic
+        const { data: unreadMessages } = await client.models.Message.list({
+          filter: {
+            chatRoomId: {
+              eq: roomId
+            },
+            senderId: {
+              ne: user.attributes.email // Not sent by current user
+            },
+            isRead: {
+              eq: false
+            }
+          }
+        });
+
+        // Mark all unread messages as read
+        for (const message of unreadMessages) {
+          if (message.id) {
+            await client.models.Message.update({
+              id: message.id,
+              isRead: true
+            });
+          }
+        }
+      } else {
+        // For group chats, create MessageReadStatus entries
+        const { data: allMessages } = await client.models.Message.list({
+          filter: {
+            chatRoomId: {
+              eq: roomId
+            },
+            senderId: {
+              ne: user.attributes.email // Not sent by current user
+            }
+          }
+        });
+        
+        if (allMessages) {
+          for (const message of allMessages) {
+            if (message.id) {
+              // Check if current user has already read this message
+              const { data: existingReadStatus } = await client.models.MessageReadStatus.list({
+                filter: {
+                  messageId: {
+                    eq: message.id
+                  },
+                  userId: {
+                    eq: user.attributes.email
+                  }
+                }
+              });
+              
+              // If not read yet, create read status
+              if (!existingReadStatus || existingReadStatus.length === 0) {
+                await client.models.MessageReadStatus.create({
+                  messageId: message.id,
+                  userId: user.attributes.email,
+                  readAt: new Date().toISOString(),
+                  createdAt: new Date().toISOString(),
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // Update unread count for this room
+      setUnreadCounts(prev => ({
+        ...prev,
+        [roomId]: 0
+      }));
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  };
 
   // Fetch messages for selected room
   const fetchMessages = async (roomId: string) => {
@@ -143,6 +322,9 @@ export function ChatApp({ user }: ChatAppProps) {
         );
       
       setMessages(convertedMessages);
+      
+      // Mark messages as read when room is opened
+      await markMessagesAsRead(roomId);
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
@@ -194,6 +376,9 @@ export function ChatApp({ user }: ChatAppProps) {
               : room
           )
         );
+
+        // For other users, this message will be unread, but we don't need to update our local unread count
+        // since we're the sender and we don't count our own messages as unread
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -226,6 +411,7 @@ export function ChatApp({ user }: ChatAppProps) {
         onSignOut={handleSignOut}
         user={user}
         onChatRoomsUpdate={fetchChatRooms}
+        unreadCounts={unreadCounts}
       />
 
       <div className="flex-1 flex flex-col">

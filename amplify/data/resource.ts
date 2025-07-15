@@ -7,7 +7,8 @@ const schema = a.schema({
       email: a.string().required(),
       nickname: a.string().required(),
       avatar: a.string(),
-      status: a.string().default('online'),
+      status: a.string().default('online'), // 'online' or 'offline'
+      description: a.string(), // Custom user description/status message
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
     })
@@ -44,6 +45,16 @@ const schema = a.schema({
       isRead: a.boolean().default(false),
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
+    })
+    .authorization((allow) => [allow.authenticated()]),
+
+  MessageReadStatus: a
+    .model({
+      id: a.id(),
+      messageId: a.id().required(),
+      userId: a.string().required(),
+      readAt: a.datetime(),
+      createdAt: a.datetime(),
     })
     .authorization((allow) => [allow.authenticated()]),
 

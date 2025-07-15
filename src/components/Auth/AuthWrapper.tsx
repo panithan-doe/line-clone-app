@@ -69,6 +69,7 @@ export function AuthWrapper() {
             email: cognitoUser.attributes.email,
             nickname: cognitoUser.attributes.nickname || cognitoUser.attributes.email,
             status: 'online',
+            description: '',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           });
@@ -85,6 +86,7 @@ export function AuthWrapper() {
               email: cognitoUser.attributes.email,
               nickname: cognitoUser.attributes.nickname || cognitoUser.attributes.email,
               status: 'online',
+              description: '',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
             });

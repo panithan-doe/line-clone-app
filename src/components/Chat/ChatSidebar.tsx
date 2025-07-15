@@ -1,6 +1,11 @@
-import React, { useState } from 'react';
-import { MessageCircle, Plus, Settings, LogOut, Users, Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MessageCircle, Plus, Settings, LogOut, Users, Search, User as UserIcon } from 'lucide-react';
+import { getUrl } from 'aws-amplify/storage';
 import { AddFriend } from './AddFriend';
+import { ActionMenu } from './ActionMenu';
+import { CreateGroupChat } from './CreateGroupChat';
+import { UserProfile } from '../Profile/UserProfile';
+import { client } from '../../lib/amplify';
 import type { ChatRoom, User } from '../../types';
 
 interface ChatSidebarProps {
@@ -10,15 +15,52 @@ interface ChatSidebarProps {
   onSignOut: () => void;
   user: any;
   onChatRoomsUpdate?: () => void;
+  unreadCounts: Record<string, number>;
 }
 
-export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, user, onChatRoomsUpdate }: ChatSidebarProps) {
+export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, user, onChatRoomsUpdate, unreadCounts }: ChatSidebarProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showActionMenu, setShowActionMenu] = useState(false);
   const [showAddFriend, setShowAddFriend] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [userDescription, setUserDescription] = useState('');
 
   const filteredRooms = chatRooms.filter(room =>
     room.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Load user profile data
+  useEffect(() => {
+    loadUserProfile();
+  }, [user]);
+
+  const loadUserProfile = async () => {
+    try {
+      const { data: userData } = await client.models.User.get({
+        email: user.attributes.email
+      });
+      
+      if (userData) {
+        setUserDescription(userData.description || '');
+        
+        // Load profile picture if exists
+        if (userData.avatar) {
+          try {
+            const { url } = await getUrl({
+              key: userData.avatar,
+            });
+            setProfilePicture(url.toString());
+          } catch (err) {
+            console.error('Error loading profile picture:', err);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error loading user profile:', err);
+    }
+  };
 
   return (
     <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
@@ -26,17 +68,32 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-              <MessageCircle className="w-6 h-6 text-white" />
-            </div>
+            <button
+              onClick={() => setShowProfile(true)}
+              className="w-10 h-10 rounded-full overflow-hidden hover:ring-2 hover:ring-green-500 transition-all"
+            >
+              {profilePicture ? (
+                <img
+                  src={profilePicture}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-green-500 flex items-center justify-center">
+                  <UserIcon className="w-6 h-6 text-white" />
+                </div>
+              )}
+            </button>
             <div>
               <h1 className="text-xl font-bold text-gray-800">Chats</h1>
-              <p className="text-sm text-gray-500">{user?.attributes?.nickname || user?.attributes?.email || 'User'}</p>
+              <p className="text-sm text-gray-500 truncate max-w-[200px]">
+                {userDescription || user?.attributes?.nickname || user?.attributes?.email || 'User'}
+              </p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <button 
-              onClick={() => setShowAddFriend(true)}
+              onClick={() => setShowActionMenu(true)}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             >
               <Plus className="w-5 h-5 text-gray-600" />
@@ -98,7 +155,16 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-gray-800 truncate">{room.name}</h3>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="font-semibold text-gray-800 truncate">{room.name}</h3>
+                        {unreadCounts[room.id] > 0 && (
+                          <div className="min-w-[20px] h-5 bg-green-500 rounded-full flex items-center justify-center px-1.5">
+                            <span className="text-xs font-semibold text-white">
+                              {unreadCounts[room.id] > 99 ? '99+' : unreadCounts[room.id]}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                       <span className="text-xs text-gray-500">
                         {room.lastMessageAt ? new Date(room.lastMessageAt).toLocaleTimeString([], { 
                           hour: '2-digit', 
@@ -117,6 +183,21 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
         )}
       </div>
 
+      {/* Action Menu Modal */}
+      {showActionMenu && (
+        <ActionMenu
+          onAddFriend={() => {
+            setShowActionMenu(false);
+            setShowAddFriend(true);
+          }}
+          onCreateGroup={() => {
+            setShowActionMenu(false);
+            setShowCreateGroup(true);
+          }}
+          onClose={() => setShowActionMenu(false)}
+        />
+      )}
+
       {/* Add Friend Modal */}
       {showAddFriend && (
         <AddFriend
@@ -124,6 +205,34 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
           onClose={() => setShowAddFriend(false)}
           onChatCreated={() => {
             setShowAddFriend(false);
+            if (onChatRoomsUpdate) {
+              onChatRoomsUpdate();
+            }
+          }}
+        />
+      )}
+
+      {/* Create Group Modal */}
+      {showCreateGroup && (
+        <CreateGroupChat
+          currentUser={user}
+          onClose={() => setShowCreateGroup(false)}
+          onGroupCreated={() => {
+            setShowCreateGroup(false);
+            if (onChatRoomsUpdate) {
+              onChatRoomsUpdate();
+            }
+          }}
+        />
+      )}
+
+      {/* User Profile Modal */}
+      {showProfile && (
+        <UserProfile
+          user={user}
+          onClose={() => setShowProfile(false)}
+          onProfileUpdate={() => {
+            loadUserProfile();
             if (onChatRoomsUpdate) {
               onChatRoomsUpdate();
             }
