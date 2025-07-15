@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Video, MoreVertical, Users, MessageCircle } from 'lucide-react';
+import { Phone, Video, MoreVertical, Users, User } from 'lucide-react';
 import type { ChatRoom } from '../../types';
 
 interface ChatHeaderProps {
@@ -10,19 +10,27 @@ export function ChatHeader({ room }: ChatHeaderProps) {
   return (
     <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
       <div className="flex items-center space-x-3">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-          room.type === 'group' ? 'bg-blue-500' : 'bg-gray-500'
-        }`}>
+        <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center">
           {room.type === 'group' ? (
-            <Users className="w-5 h-5 text-white" />
+            <div className="w-full h-full bg-blue-500 flex items-center justify-center">
+              <Users className="w-5 h-5 text-white" />
+            </div>
+          ) : room.otherUserAvatar ? (
+            <img
+              src={room.otherUserAvatar}
+              alt={`${room.name} profile`}
+              className="w-full h-full object-cover"
+            />
           ) : (
-            <MessageCircle className="w-5 h-5 text-white" />
+            <div className="w-full h-full bg-gray-500 flex items-center justify-center">
+              <User className="w-5 h-5 text-white" />
+            </div>
           )}
         </div>
         <div>
           <h2 className="font-semibold text-gray-800">{room.name}</h2>
           <p className="text-sm text-gray-500">
-            {room.type === 'group' ? 'Group Chat' : 'Online'}
+            {room.type === 'group' ? 'Group Chat' : ''}
           </p>
         </div>
       </div>

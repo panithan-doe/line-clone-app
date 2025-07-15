@@ -11,7 +11,7 @@ interface UserProfileProps {
 
 export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [nickname, setNickname] = useState(user.attributes.nickname || '');
+  const [nickname, setNickname] = useState('');
   const [description, setDescription] = useState('');
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,6 +38,9 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
           try {
             const { url } = await getUrl({
               key: userData.avatar,
+              options: {
+                accessLevel: 'guest'
+              }
             });
             setProfilePicture(url.toString());
           } catch (err) {
@@ -82,13 +85,19 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
         key: fileName,
         data: file,
         options: {
+          accessLevel: 'guest',
           contentType: file.type,
         }
       }).result;
 
+      console.log('Upload key:', key);
+      
       // Get URL for preview
       const { url } = await getUrl({
         key: key,
+        options: {
+          accessLevel: 'guest'
+        }
       });
       
       setProfilePicture(url.toString());
@@ -98,6 +107,8 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
         email: user.attributes.email,
         avatar: key,
       });
+      
+      console.log('Updated user avatar path:', key);
 
       onProfileUpdate();
     } catch (err) {
@@ -142,8 +153,7 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
   };
 
   const handleCancel = () => {
-    // Reset to original values
-    setNickname(user.attributes.nickname || '');
+    // Reset to original values by reloading user data
     loadUserData();
     setIsEditing(false);
     setError('');

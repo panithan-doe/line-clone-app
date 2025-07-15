@@ -7,7 +7,6 @@ const schema = a.schema({
       email: a.string().required(),
       nickname: a.string().required(),
       avatar: a.string(),
-      status: a.string().default('online'), // 'online' or 'offline'
       description: a.string(), // Custom user description/status message
       createdAt: a.datetime(),
       updatedAt: a.datetime(),

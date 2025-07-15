@@ -27,9 +27,16 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [userDescription, setUserDescription] = useState('');
 
-  const filteredRooms = chatRooms.filter(room =>
-    room.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRooms = chatRooms
+    .filter(room =>
+      room.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Sort by lastMessageAt in descending order (newest first)
+      const aTime = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const bTime = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return bTime - aTime;
+    });
 
   // Load user profile data
   useEffect(() => {
@@ -47,13 +54,18 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
         
         // Load profile picture if exists
         if (userData.avatar) {
+          console.log('Current user avatar path:', userData.avatar);
           try {
             const { url } = await getUrl({
               key: userData.avatar,
+              options: {
+                accessLevel: 'guest'
+              }
             });
             setProfilePicture(url.toString());
+            console.log('Current user avatar URL:', url.toString());
           } catch (err) {
-            console.error('Error loading profile picture:', err);
+            console.error('Error loading current user profile picture:', err);
           }
         }
       }
@@ -87,7 +99,7 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
             <div>
               <h1 className="text-xl font-bold text-gray-800">Chats</h1>
               <p className="text-sm text-gray-500 truncate max-w-[200px]">
-                {userDescription || user?.attributes?.nickname || user?.attributes?.email || 'User'}
+                {userDescription || user?.attributes?.email || 'User'}
               </p>
             </div>
           </div>
@@ -132,26 +144,37 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {filteredRooms.map((room) => (
-              <div
-                key={room.id}
-                onClick={() => onSelectRoom(room)}
-                className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                  selectedRoom?.id === room.id ? 'bg-green-50 border-r-4 border-green-500' : ''
-                }`}
-              >
-                <div className="flex items-center space-x-3">
+            {filteredRooms.map((room) => {
+              console.log('Room in sidebar:', room.name, 'Type:', room.type, 'Avatar:', room.otherUserAvatar);
+              return (
+                <div
+                  key={room.id}
+                  onClick={() => onSelectRoom(room)}
+                  className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
+                    selectedRoom?.id === room.id ? 'bg-green-50 border-r-4 border-green-500' : ''
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
                   <div className="relative">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      room.type === 'group' ? 'bg-blue-500' : 'bg-gray-500'
-                    }`}>
+                    <div className="w-12 h-12 rounded-full overflow-hidden">
                       {room.type === 'group' ? (
-                        <Users className="w-6 h-6 text-white" />
+                        <div className="w-full h-full bg-blue-500 flex items-center justify-center">
+                          <Users className="w-6 h-6 text-white" />
+                        </div>
+                      ) : room.otherUserAvatar ? (
+                        <img
+                          src={room.otherUserAvatar}
+                          alt={`${room.name} profile`}
+                          className="w-full h-full object-cover"
+                          onLoad={() => console.log('Other user avatar loaded:', room.otherUserAvatar)}
+                          onError={(e) => console.error('Other user avatar failed to load:', room.otherUserAvatar, e)}
+                        />
                       ) : (
-                        <MessageCircle className="w-6 h-6 text-white" />
+                        <div className="w-full h-full bg-gray-500 flex items-center justify-center">
+                          <UserIcon className="w-6 h-6 text-white" />
+                        </div>
                       )}
                     </div>
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
@@ -178,7 +201,8 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
                   </div>
                 </div>
               </div>
-            ))}
+                );
+              })}
           </div>
         )}
       </div>

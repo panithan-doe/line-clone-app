@@ -108,11 +108,24 @@ export function AddFriend({ currentUser, onClose, onChatCreated }: AddFriendProp
       console.log('New private chat room created:', newRoom);
 
       if (newRoom && newRoom.id) {
+        // Get current user's nickname from User table
+        let currentUserNickname = currentUser.attributes.email;
+        try {
+          const { data: currentUserData } = await client.models.User.get({
+            email: currentUser.attributes.email
+          });
+          if (currentUserData?.nickname) {
+            currentUserNickname = currentUserData.nickname;
+          }
+        } catch (err) {
+          console.error('Error loading current user nickname:', err);
+        }
+
         // Add both users as members
         await client.models.ChatRoomMember.create({
           chatRoomId: newRoom.id,
           userId: currentUser.attributes.email,
-          userNickname: currentUser.attributes.nickname || currentUser.attributes.email,
+          userNickname: currentUserNickname,
           role: 'member',
           joinedAt: new Date().toISOString(),
         });

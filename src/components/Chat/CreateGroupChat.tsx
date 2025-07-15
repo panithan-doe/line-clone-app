@@ -145,22 +145,49 @@ export function CreateGroupChat({ currentUser, onClose, onGroupCreated }: Create
       });
 
       if (newRoom && newRoom.id) {
+        // Get current user's nickname from User table
+        let currentUserNickname = currentUser.attributes.email;
+        try {
+          const { data: currentUserData } = await client.models.User.get({
+            email: currentUser.attributes.email
+          });
+          if (currentUserData?.nickname) {
+            currentUserNickname = currentUserData.nickname;
+          }
+        } catch (err) {
+          console.error('Error loading current user nickname:', err);
+        }
+
         // Add current user as admin
         await client.models.ChatRoomMember.create({
           chatRoomId: newRoom.id ?? '',
           userId: currentUser.attributes.email,
-          userNickname: currentUser.attributes.nickname || currentUser.attributes.email,
+          userNickname: currentUserNickname,
           role: 'admin',
           joinedAt: new Date().toISOString(),
         });
 
         // Add selected friends as members
-        const memberPromises = Array.from(selectedFriends).map(friendId => {
+        const memberPromises = Array.from(selectedFriends).map(async (friendId) => {
           const friend = friends.find(f => f.id === friendId);
+          let friendNickname = friend?.nickname || friendId;
+          
+          // Get friend's current nickname from User table
+          try {
+            const { data: friendData } = await client.models.User.get({
+              email: friendId
+            });
+            if (friendData?.nickname) {
+              friendNickname = friendData.nickname;
+            }
+          } catch (err) {
+            console.error('Error loading friend nickname:', err);
+          }
+          
           return client.models.ChatRoomMember.create({
             chatRoomId: newRoom.id ?? '',
             userId: friendId,
-            userNickname: friend?.nickname || friendId,
+            userNickname: friendNickname,
             role: 'member',
             joinedAt: new Date().toISOString(),
           });

@@ -3,7 +3,6 @@ export interface User {
   email: string;
   nickname: string;
   avatar?: string;
-  status?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -18,6 +17,8 @@ export interface ChatRoom {
   lastMessageAt?: string;
   createdAt?: string;
   updatedAt?: string;
+  otherUserAvatar?: string | null; // For private chats
+  otherUserId?: string; // For private chats
 }
 
 export interface Message {

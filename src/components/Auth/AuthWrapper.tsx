@@ -67,8 +67,7 @@ export function AuthWrapper() {
           console.log('User not found in database, creating...');
           await client.models.User.create({
             email: cognitoUser.attributes.email,
-            nickname: cognitoUser.attributes.nickname || cognitoUser.attributes.email,
-            status: 'online',
+            nickname: cognitoUser.attributes.email, // Use email as default nickname
             description: '',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -84,8 +83,7 @@ export function AuthWrapper() {
           try {
             await client.models.User.create({
               email: cognitoUser.attributes.email,
-              nickname: cognitoUser.attributes.nickname || cognitoUser.attributes.email,
-              status: 'online',
+              nickname: cognitoUser.attributes.email, // Use email as default nickname
               description: '',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),

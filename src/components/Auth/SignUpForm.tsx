@@ -4,7 +4,6 @@ import { User, Mail, Lock, Key } from 'lucide-react';
 
 export function SignUpForm({ goBack }: { goBack: () => void }) {
   const [email, setEmail] = useState('');
-  const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'form' | 'confirm'>('form');
@@ -22,7 +21,6 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
         options: {
           userAttributes: {
             email,
-            nickname,
           },
         },
       });
@@ -85,17 +83,6 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
                 />
               </div>
 
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Nickname"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                  disabled={isLoading}
-                />
-              </div>
 
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />

@@ -3,6 +3,7 @@ import { MessageCircle } from "lucide-react";
 import { ChatSidebar } from "./ChatSidebar";
 import { ChatRoom } from "./ChatRoom";
 import { getCurrentUser, signOut } from "aws-amplify/auth";
+import { getUrl } from 'aws-amplify/storage';
 import { client } from "../../lib/amplify";
 import type { ChatRoom as ChatRoomType, Message, User as AppUser } from "../../types";
 
@@ -16,6 +17,7 @@ export function ChatApp({ user }: ChatAppProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [profilePictureCache, setProfilePictureCache] = useState<Record<string, string | null>>({});
 
   // Helper function to convert Amplify data to Message type
   const convertToMessage = (amplifyMessage: any): Message => {
@@ -45,6 +47,8 @@ export function ChatApp({ user }: ChatAppProps) {
       lastMessageAt: amplifyRoom.lastMessageAt || '',
       createdAt: amplifyRoom.createdAt || now,
       updatedAt: amplifyRoom.updatedAt || now,
+      otherUserAvatar: amplifyRoom.otherUserAvatar || null,
+      otherUserId: amplifyRoom.otherUserId || null,
     };
   };
 
@@ -176,12 +180,78 @@ export function ChatApp({ user }: ChatAppProps) {
               member.userId && member.userId !== user.attributes.email
             );
             
+            console.log('Private chat members:', allMembers);
+            console.log('Other member found:', otherMember);
+            
             if (otherMember) {
-              // Use the other user's nickname for display
-              return {
+              // Get the other user's profile data including avatar
+              let otherUserAvatar: string | null = null;
+              
+              // Check cache first
+              if (profilePictureCache[otherMember.userId]) {
+                otherUserAvatar = profilePictureCache[otherMember.userId];
+                console.log('Using cached avatar for:', otherMember.userId);
+              } else {
+                try {
+                  const { data: userData } = await client.models.User.get({
+                    email: otherMember.userId
+                  });
+                  
+                  console.log('Other user data:', userData);
+                  
+                  if (userData?.avatar) {
+                    console.log('Other user avatar path:', userData.avatar);
+                    try {
+                      const { url } = await getUrl({
+                        key: userData.avatar,
+                        options: {
+                          accessLevel: 'guest'
+                        }
+                      });
+                      otherUserAvatar = url.toString();
+                      console.log('Other user avatar URL:', otherUserAvatar);
+                    } catch (avatarError) {
+                      console.error('Error getting other user avatar URL:', avatarError);
+                    }
+                    
+                    // Cache the profile picture
+                    if (otherUserAvatar) {
+                      setProfilePictureCache(prev => ({
+                        ...prev,
+                        [otherMember.userId]: otherUserAvatar
+                      }));
+                    }
+                  }
+                } catch (err) {
+                  console.error('Error loading other user avatar:', err);
+                }
+              }
+              
+              // Get the other user's current nickname from User table
+              let otherUserNickname = otherMember.userNickname || otherMember.userId;
+              
+              try {
+                const { data: userData } = await client.models.User.get({
+                  email: otherMember.userId
+                });
+                
+                if (userData?.nickname) {
+                  otherUserNickname = userData.nickname;
+                }
+              } catch (err) {
+                console.error('Error loading other user nickname:', err);
+              }
+              
+              // Use the other user's current nickname for display
+              const roomData = {
                 ...room,
-                name: otherMember.userNickname || otherMember.userId
+                name: otherUserNickname,
+                otherUserAvatar: otherUserAvatar,
+                otherUserId: otherMember.userId
               };
+              
+              console.log('Creating room data:', roomData.name, 'Avatar:', roomData.otherUserAvatar);
+              return roomData;
             }
           }
           
@@ -340,13 +410,28 @@ export function ChatApp({ user }: ChatAppProps) {
     if (!selectedRoom || !user) return;
 
     try {
+      // Get current user's nickname from User table
+      let currentUserNickname = user.attributes.email;
+      
+      try {
+        const { data: userData } = await client.models.User.get({
+          email: user.attributes.email
+        });
+        
+        if (userData?.nickname) {
+          currentUserNickname = userData.nickname;
+        }
+      } catch (err) {
+        console.error('Error loading current user nickname:', err);
+      }
+      
       // Create the message in the database
       const { data: newMessage } = await client.models.Message.create({
         content,
         type: "text",
         chatRoomId: selectedRoom.id,
         senderId: user.attributes.email,
-        senderNickname: user.attributes.nickname || user.attributes.email,
+        senderNickname: currentUserNickname,
         isRead: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

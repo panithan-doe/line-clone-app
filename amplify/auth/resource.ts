@@ -8,8 +8,5 @@ export const auth = defineAuth({
     email: {
       required: true,
     },
-    nickname: {
-      required: true,
-    },
   }
 });
