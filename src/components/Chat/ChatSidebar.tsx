@@ -103,7 +103,7 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
                 {userNickname || user.attributes.email || 'User'}
               </h1>
               <p className="text-sm text-gray-500 truncate">
-                {userDescription || 'No description status...'}
+                {userDescription || 'No status yet...'}
               </p>
             </div>
           </div>

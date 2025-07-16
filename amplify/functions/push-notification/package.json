@@ -1,0 +1,9 @@
+{
+  "name": "push-notification",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.143"
+  }
+}
