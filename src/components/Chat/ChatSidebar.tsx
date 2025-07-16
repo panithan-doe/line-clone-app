@@ -26,6 +26,7 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
   const [showProfile, setShowProfile] = useState(false);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [userDescription, setUserDescription] = useState('');
+  const [userNickname, setUserNickname] = useState('');
 
   const filteredRooms = chatRooms
     .filter(room =>
@@ -51,6 +52,7 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
       
       if (userData) {
         setUserDescription(userData.description || '');
+        setUserNickname(userData.nickname || '');
         
         // Load profile picture if exists
         if (userData.avatar) {
@@ -79,10 +81,10 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 min-w-0 flex-1">
             <button
               onClick={() => setShowProfile(true)}
-              className="w-10 h-10 rounded-full overflow-hidden hover:ring-2 hover:ring-green-500 transition-all"
+              className="w-10 h-10 rounded-full overflow-hidden hover:ring-2 hover:ring-green-500 transition-all flex-shrink-0"
             >
               {profilePicture ? (
                 <img
@@ -96,10 +98,12 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
                 </div>
               )}
             </button>
-            <div>
-              <h1 className="text-xl font-bold text-gray-800">Chats</h1>
-              <p className="text-sm text-gray-500 truncate max-w-[200px]">
-                {userDescription || user?.attributes?.email || 'User'}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-bold text-gray-800 truncate">
+                {userNickname || user.attributes.email || 'User'}
+              </h1>
+              <p className="text-sm text-gray-500 truncate">
+                {userDescription || 'No description status...'}
               </p>
             </div>
           </div>
