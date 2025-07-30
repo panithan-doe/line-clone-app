@@ -19,6 +19,8 @@ export function ChatApp({ user }: ChatAppProps) {
   const [loading, setLoading] = useState(true);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [profilePictureCache, setProfilePictureCache] = useState<Record<string, string | null>>({});
+  const [userRole, setUserRole] = useState<string | undefined>(undefined);
+  const [isCurrentChatUnavailable, setIsCurrentChatUnavailable] = useState(false);
 
   // Debug user data
   console.log('ChatApp - User data:', user);
@@ -297,6 +299,18 @@ export function ChatApp({ user }: ChatAppProps) {
               
               console.log('Creating room data:', roomData.name, 'Avatar:', roomData.otherUserAvatar);
               return roomData;
+            } else {
+              // No other member found - the other user left the chat
+              console.log('No other member found in private chat, showing as unavailable');
+              const roomData = {
+                ...room,
+                name: 'Unavailable Chat',
+                otherUserAvatar: null,
+                otherUserId: null,
+                isUnavailable: true // Flag to indicate this chat is unavailable
+              };
+              
+              return roomData;
             }
           }
           
@@ -327,6 +341,37 @@ export function ChatApp({ user }: ChatAppProps) {
   useEffect(() => {
     fetchChatRooms();
   }, []);
+
+  // Periodically check if the current private chat is still available
+  useEffect(() => {
+    if (!selectedRoom || selectedRoom.type !== 'private') {
+      return;
+    }
+
+    const checkInterval = setInterval(async () => {
+      const isAvailable = await checkChatAvailability(selectedRoom.id);
+      const wasUnavailable = isCurrentChatUnavailable;
+      const nowUnavailable = !isAvailable;
+      
+      if (wasUnavailable !== nowUnavailable) {
+        console.log('Chat availability changed:', isAvailable);
+        setIsCurrentChatUnavailable(nowUnavailable);
+        
+        // If chat just became unavailable, update the room name in the sidebar
+        if (nowUnavailable) {
+          setChatRooms(prev => prev.map(room => 
+            room.id === selectedRoom.id 
+              ? { ...room, name: 'Unavailable Chat', isUnavailable: true, otherUserAvatar: null, otherUserId: null }
+              : room
+          ));
+        }
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => {
+      clearInterval(checkInterval);
+    };
+  }, [selectedRoom, isCurrentChatUnavailable]);
 
   // Set up global message subscription for unread count updates in sidebar
   useEffect(() => {
@@ -757,6 +802,163 @@ export function ChatApp({ user }: ChatAppProps) {
     }
   };
 
+  // Fetch user's role in a specific chat room
+  const fetchUserRole = async (roomId: string) => {
+    try {
+      const { data: memberships } = await client.models.ChatRoomMember.list({
+        filter: {
+          and: [
+            { chatRoomId: { eq: roomId } },
+            { userId: { eq: user.attributes.email } }
+          ]
+        }
+      });
+
+      if (memberships && memberships.length > 0) {
+        return memberships[0].role || 'member';
+      }
+      return 'member';
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+      return 'member';
+    }
+  };
+
+  // Check if a private chat is still available (has other members)
+  const checkChatAvailability = async (roomId: string) => {
+    try {
+      const { data: memberships } = await client.models.ChatRoomMember.list({
+        filter: {
+          chatRoomId: { eq: roomId }
+        }
+      });
+
+      if (memberships && memberships.length > 0) {
+        // Check if there's another member besides the current user
+        const otherMember = memberships.find(member => 
+          member.userId && member.userId !== user.attributes.email
+        );
+        return !!otherMember; // Returns true if other member exists, false if not
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking chat availability:', error);
+      return false;
+    }
+  };
+
+  // Handle room selection and fetch user role
+  const handleSelectRoom = async (room: ChatRoomType) => {
+    setSelectedRoom(room);
+    
+    // Check if this is a private chat and if it's still available
+    if (room.type === 'private') {
+      const isAvailable = await checkChatAvailability(room.id);
+      setIsCurrentChatUnavailable(!isAvailable);
+      console.log('Private chat availability:', isAvailable);
+    } else {
+      setIsCurrentChatUnavailable(false);
+    }
+    
+    // Fetch user role for the selected room
+    if (room.type === 'group') {
+      const role = await fetchUserRole(room.id);
+      setUserRole(role);
+      console.log('User role in group chat:', role);
+    } else {
+      setUserRole(undefined); // Private chats don't need role checking
+    }
+  };
+
+  // Remove chat (soft delete for private chats, hard delete for group chats by admin)
+  const handleRemoveChat = async (roomId: string) => {
+    try {
+      console.log('Removing chat:', roomId);
+      
+      // Find the user's membership in this chat room
+      const { data: memberships } = await client.models.ChatRoomMember.list({
+        filter: {
+          and: [
+            { chatRoomId: { eq: roomId } },
+            { userId: { eq: user.attributes.email } }
+          ]
+        }
+      });
+
+      if (memberships && memberships.length > 0) {
+        const membership = memberships[0];
+        
+        // Handle group chat deletion (admin only)
+        if (selectedRoom?.type === 'group') {
+          if (membership.role !== 'admin') {
+            console.error('Only admins can remove group chats');
+            return;
+          }
+          
+          console.log('Admin is deleting entire group chat...');
+          
+          // Step 1: Get all members of the group
+          const { data: allMemberships } = await client.models.ChatRoomMember.list({
+            filter: {
+              chatRoomId: { eq: roomId }
+            }
+          });
+          
+          // Step 2: Delete all memberships (removes everyone from the group)
+          if (allMemberships && allMemberships.length > 0) {
+            const deletePromises = allMemberships.map(memberToDelete => 
+              client.models.ChatRoomMember.delete({
+                id: memberToDelete.id
+              })
+            );
+            
+            await Promise.all(deletePromises);
+            console.log(`Removed ${allMemberships.length} members from group`);
+          }
+          
+          // Step 3: Delete the chat room itself (optional - keeps message history)
+          // Uncomment the following lines if you want to delete the chat room completely:
+          /*
+          try {
+            await client.models.ChatRoom.delete({
+              id: roomId
+            });
+            console.log('Chat room deleted completely');
+          } catch (roomDeleteError) {
+            console.error('Error deleting chat room:', roomDeleteError);
+          }
+          */
+          
+          console.log('Group chat deleted successfully');
+        } else {
+          // Handle private chat removal (soft delete - only remove current user)
+          console.log('Removing user from private chat...');
+          await client.models.ChatRoomMember.delete({
+            id: membership.id
+          });
+          console.log('Successfully removed from private chat');
+        }
+        
+        // Update local state to remove the chat from sidebar
+        setChatRooms(prev => prev.filter(room => room.id !== roomId));
+        
+        // If this was the selected room, clear the selection
+        if (selectedRoom?.id === roomId) {
+          setSelectedRoom(null);
+          setMessages([]);
+          setUserRole(undefined);
+        }
+        
+        // Refresh chat rooms to ensure consistency
+        fetchChatRooms();
+      } else {
+        console.error('Membership not found for chat room:', roomId);
+      }
+    } catch (error) {
+      console.error('Error removing from chat room:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-100">
@@ -770,7 +972,7 @@ export function ChatApp({ user }: ChatAppProps) {
       <ChatSidebar
         chatRooms={chatRooms}
         selectedRoom={selectedRoom}
-        onSelectRoom={setSelectedRoom}
+        onSelectRoom={handleSelectRoom}
         onSignOut={handleSignOut}
         user={user}
         onChatRoomsUpdate={fetchChatRooms}
@@ -784,6 +986,10 @@ export function ChatApp({ user }: ChatAppProps) {
             messages={messages}
             onSendMessage={sendMessage}
             currentUserId={user.attributes.email}
+            currentUser={user}
+            onRemoveChat={handleRemoveChat}
+            userRole={userRole}
+            isUnavailable={selectedRoom.type === 'private' ? isCurrentChatUnavailable : selectedRoom.isUnavailable}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center">

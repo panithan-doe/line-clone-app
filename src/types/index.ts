@@ -18,7 +18,8 @@ export interface ChatRoom {
   createdAt?: string;
   updatedAt?: string;
   otherUserAvatar?: string | null; // For private chats
-  otherUserId?: string; // For private chats
+  otherUserId?: string | null; // For private chats
+  isUnavailable?: boolean; // For chats where the other user has left
 }
 
 export interface Message {
