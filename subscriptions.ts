@@ -87,11 +87,11 @@ export const onCreateUser = /* GraphQL */ `subscription OnCreateUser(
   onCreateUser(filter: $filter, owner: $owner) {
     avatar
     createdAt
+    description
     email
     id
     nickname
     owner
-    status
     updatedAt
     __typename
   }
@@ -179,11 +179,11 @@ export const onDeleteUser = /* GraphQL */ `subscription OnDeleteUser(
   onDeleteUser(filter: $filter, owner: $owner) {
     avatar
     createdAt
+    description
     email
     id
     nickname
     owner
-    status
     updatedAt
     __typename
   }
@@ -271,11 +271,11 @@ export const onUpdateUser = /* GraphQL */ `subscription OnUpdateUser(
   onUpdateUser(filter: $filter, owner: $owner) {
     avatar
     createdAt
+    description
     email
     id
     nickname
     owner
-    status
     updatedAt
     __typename
   }

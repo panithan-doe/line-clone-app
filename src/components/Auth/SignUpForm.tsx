@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { signUp, confirmSignUp } from 'aws-amplify/auth';
 import { User, Mail, Lock, Key } from 'lucide-react';
 
-export function SignUpForm({ goBack }: { goBack: () => void }) {
+interface SignUpFormProps {
+  goBack: () => void;
+  onAuthSuccess?: () => void;
+}
+
+export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -44,10 +49,14 @@ export function SignUpForm({ goBack }: { goBack: () => void }) {
       await confirmSignUp({ username: email, confirmationCode: code });
       console.log('✅ Sign up confirmed');
 
-      // Step 2: Show success message and reload to trigger AuthWrapper
       console.log('✅ User registration completed');
-      alert('Registration successful! You are now signed in.');
-      window.location.reload(); // Reload to trigger AuthWrapper authentication check
+      
+      // Use callback to refresh auth state instead of page reload
+      if (onAuthSuccess) {
+        onAuthSuccess();
+      } else {
+        window.location.reload(); // fallback
+      }
       
     } catch (err: any) {
       console.error('❌ HandleConfirm error:', err);

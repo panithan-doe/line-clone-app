@@ -36,12 +36,12 @@ export function ChatHeader({ room }: ChatHeaderProps) {
       </div>
       
       <div className="flex items-center space-x-2">
-        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+        {/* <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
           <Phone className="w-5 h-5 text-gray-600" />
         </button>
         <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
           <Video className="w-5 h-5 text-gray-600" />
-        </button>
+        </button> */}
         <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
           <MoreVertical className="w-5 h-5 text-gray-600" />
         </button>

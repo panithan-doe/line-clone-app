@@ -25,9 +25,9 @@ export function MessageInput({ onSendMessage }: MessageInputProps) {
   return (
     <div className="bg-white border-t border-gray-200 p-4">
       <div className="flex items-center space-x-3">
-        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+        {/* <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
           <Paperclip className="w-5 h-5 text-gray-600" />
-        </button>
+        </button> */}
         
         <div className="flex-1 relative">
           <input

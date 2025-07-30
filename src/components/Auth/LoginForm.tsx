@@ -3,7 +3,11 @@ import { signIn, signOut } from 'aws-amplify/auth';
 import { MessageCircle, Mail, Lock } from 'lucide-react';
 import { SignUpForm } from './SignUpForm';
 
-export function LoginForm() {
+interface LoginFormProps {
+  onAuthSuccess?: () => void;
+}
+
+export function LoginForm({ onAuthSuccess }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showSignUp, setShowSignUp] = useState(false);
@@ -21,7 +25,13 @@ export function LoginForm() {
       
       // Now attempt to sign in with clean state
       await signIn({ username: email, password });
-      window.location.reload(); // refresh AuthWrapper
+      console.log('✅ Sign in successful');
+      // Use callback to refresh auth state instead of page reload
+      if (onAuthSuccess) {
+        onAuthSuccess();
+      } else {
+        window.location.reload(); // fallback
+      }
     } catch (err: any) {
       console.error('Sign in error:', err);
       setError(err.message || 'Sign in failed');
@@ -29,7 +39,7 @@ export function LoginForm() {
   };
 
   // Show sign-up form if toggled
-  if (showSignUp) return <SignUpForm goBack={() => setShowSignUp(false)} />;
+  if (showSignUp) return <SignUpForm goBack={() => setShowSignUp(false)} onAuthSuccess={onAuthSuccess} />;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-400 via-green-500 to-green-600 flex items-center justify-center p-4">

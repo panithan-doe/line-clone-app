@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, Edit2, Check, User } from 'lucide-react';
 import { uploadData, getUrl } from 'aws-amplify/storage';
 import { client } from '../../lib/amplify';
@@ -14,20 +14,43 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
   const [nickname, setNickname] = useState('');
   const [description, setDescription] = useState('');
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [currentAvatarPath, setCurrentAvatarPath] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load current user data
-  React.useEffect(() => {
+  useEffect(() => {
     loadUserData();
   }, []);
 
   const loadUserData = async () => {
     try {
-      const { data: userData } = await client.models.User.get({
-        email: user.attributes.email
-      });
+      let userData = null;
+      // // Try direct access
+      // let userData = null;
+      // try {
+      //   console.log('UserProfile: Attempting direct user data access...');
+      //   const { data: directUserData } = await client.models.User.get({
+      //     email: user.attributes.email
+      //   });
+      //   userData = directUserData;
+      // } catch (directError) {
+      //   console.log('UserProfile: Direct access failed:', directError);
+      // }
+
+      // Try Lambda
+      try {
+        const userResponse = await client.queries.verifyUser({
+          email: user.attributes.email
+        });
+        console.log('email: ', user.attributes.email);
+        console.log('userResponse', userResponse);
+        userData = userResponse?.data;
+        console.log('UserProfile: Lambda user data result:', userData);
+      } catch (lambdaError) {
+        console.error('UserProfile: Lambda fallback also failed:', lambdaError);
+      }
       
       if (userData) {
         setNickname(userData.nickname || '');
@@ -35,21 +58,39 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
         
         // Load profile picture if exists
         if (userData.avatar) {
+          console.log('userData: ',userData)
+          console.log('UserProfile: Avatar path found:', userData.avatar);
+          setCurrentAvatarPath(userData.avatar); // Store the avatar path
           try {
             const { url } = await getUrl({
-              key: userData.avatar,
-              options: {
-                accessLevel: 'guest'
-              }
+              key: userData.avatar
             });
+            console.log('UserProfile: Avatar URL generated:', url.toString());
             setProfilePicture(url.toString());
           } catch (err) {
-            console.error('Error loading profile picture:', err);
+            console.error('UserProfile: Error loading profile picture:', err);
+            setProfilePicture(null);
           }
+        } else {
+          console.log('UserProfile: No avatar path found');
+          setCurrentAvatarPath(null);
+          setProfilePicture(null);
         }
+      } else {
+        console.log('UserProfile: No user data found');
+        // Set defaults
+        setNickname(user.attributes.email || '');
+        setDescription('');
+        setCurrentAvatarPath(null);
+        setProfilePicture(null);
       }
     } catch (err) {
-      console.error('Error loading user data:', err);
+      console.error('UserProfile: Error loading user data:', err);
+      // Set defaults on error
+      setNickname(user.attributes.email || '');
+      setDescription('');
+      setCurrentAvatarPath(null);
+      setProfilePicture(null);
     }
   };
 
@@ -73,44 +114,69 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
 
     try {
       const fileExtension = file.name.split('.').pop();
-      // Use user's email as the unique identifier
-      const userIdentifier = user.attributes?.email || user.userId || user.username;
-      const fileName = `profile-pictures/${userIdentifier}/avatar.${fileExtension}`;
+      const userEmail = user.attributes?.email || user.userId || user.username;
+      const fileName = `public/profile-pictures/${userEmail}/avatar.${fileExtension}`;
       
-      console.log('Uploading file:', fileName);
-      console.log('User object:', user);
+      console.log('Uploading file to S3:', fileName);
+      console.log('File details:', { name: file.name, type: file.type, size: file.size });
       
-      // Upload to S3
+      // Step 1: Upload to S3 directly
       const { key } = await uploadData({
         key: fileName,
         data: file,
         options: {
-          accessLevel: 'guest',
           contentType: file.type,
         }
       }).result;
 
-      console.log('Upload key:', key);
+      console.log('File uploaded successfully. S3 key:', key);
       
-      // Get URL for preview
+      // Step 2: Get URL for immediate preview
       const { url } = await getUrl({
-        key: key,
-        options: {
-          accessLevel: 'guest'
-        }
+        key: key
       });
       
+      console.log('Generated preview URL:', url.toString());
       setProfilePicture(url.toString());
       
-      // Update user record with new avatar path
-      await client.models.User.update({
-        email: user.attributes.email,
-        avatar: key,
-      });
+      // Step 3: Update database using Lambda function to ensure proper authorization
+      let updateSuccess = false;
+      try {
+        console.log('Updating database with avatar path via Lambda:', key);
+        const updateResult = await client.mutations.updateUserProfile({
+          email: user.attributes.email,
+          nickname: nickname, // Keep current nickname
+          description: description, // Keep current description
+          avatar: key // Add avatar field
+        });
+        
+        console.log('Lambda updateUserProfile result:', updateResult);
+        if (updateResult?.errors && updateResult.errors.length > 0) {
+          console.error('Lambda updateUserProfile errors:', updateResult.errors);
+          throw new Error(`Lambda errors: ${updateResult.errors.map(e => e.message).join(', ')}`);
+        }
+        updateSuccess = true;
+        setCurrentAvatarPath(key); // Update the current avatar path
+        console.log('Database updated successfully via Lambda');
+      } catch (updateError) {
+        console.error('Failed to update database via Lambda:', updateError);
+        setError('Failed to update profile in database');
+        return;
+      }
       
-      console.log('Updated user avatar path:', key);
-
-      onProfileUpdate();
+      // Step 4: Refresh user data
+      if (updateSuccess) {
+        console.log('Avatar upload successful, refreshing data...');
+        
+        try {
+          await loadUserData();
+          console.log('Avatar data refresh completed');
+        } catch (refreshError) {
+          console.error('Failed to refresh user data:', refreshError);
+        }
+        
+        onProfileUpdate();
+      }
     } catch (err) {
       console.error('Error uploading image:', err);
       setError('Failed to upload image');
@@ -136,14 +202,72 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
     setError('');
 
     try {
-      await client.models.User.update({
-        email: user.attributes.email,
-        nickname: nickname.trim(),
-        description: description.trim(),
-      });
+      // Try Lambda first
+      let updateSuccess = false;
+      console.log('Trying Lambda updateUserProfile...errrrr');
+      try {
+        console.log('Trying Lambda updateUserProfile...');
+        console.log('Updating profile with:', {
+          email: user.attributes.email,
+          nickname: nickname.trim(),
+          description: description.trim(),
+          avatar: currentAvatarPath,
+        });
+        const updateResult = await client.mutations.updateUserProfile({
+          email: user.attributes.email,
+          nickname: nickname.trim(),
+          description: description.trim(),
+          avatar: currentAvatarPath, // Include the current avatar path
+        });
+        console.log('Lambda updateUserProfile raw result:', updateResult);
+        console.log('Lambda updateUserProfile errors:', updateResult?.errors);
+        if (updateResult?.errors && updateResult.errors.length > 0) {
+          updateResult.errors.forEach((error, index) => {
+            console.log(`Lambda updateUserProfile error ${index + 1}:`, error.message);
+            console.log('Error details:', error);
+          });
+          throw new Error(`Lambda errors: ${updateResult.errors.map(e => e.message).join(', ')}`);
+        }
+        updateSuccess = true;
+        console.log('Lambda updateUserProfile succeeded');
+      } catch (lambdaError) {
+        console.error('Lambda updateUserProfile failed:', lambdaError);
+        
+        // If Lambda fails, try direct model update as fallback
+        try {
+          console.log('Trying direct User model update...');
+          await client.models.User.update({
+            email: user.attributes.email,
+            nickname: nickname.trim(),
+            description: description.trim(),
+            avatar: currentAvatarPath, // Include the current avatar path
+            owner: user.attributes.email, // Include owner for authorization
+            updatedAt: new Date().toISOString()
+          });
+          updateSuccess = true;
+          console.log('Direct User model update succeeded');
+        } catch (directError) {
+          console.error('Direct User model update also failed:', directError);
+        }
+      }
 
-      setIsEditing(false);
-      onProfileUpdate();
+      if (updateSuccess) {
+        console.log('Profile update successful, refreshing data...');
+        
+        // Refresh the user data to get the latest values from database
+        try {
+          await loadUserData();
+          console.log('Profile data refresh completed');
+        } catch (refreshError) {
+          console.error('Failed to refresh user data after profile update:', refreshError);
+          // Don't fail the whole operation if refresh fails
+        }
+        
+        setIsEditing(false);
+        onProfileUpdate();
+      } else {
+        setError('Failed to update profile');
+      }
     } catch (err) {
       console.error('Error updating profile:', err);
       setError('Failed to update profile');
@@ -153,7 +277,7 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
   };
 
   const handleCancel = () => {
-    // Reset to original values by reloading user data
+    // Reset to original values by reloading user data with fresh data
     loadUserData();
     setIsEditing(false);
     setError('');
@@ -235,7 +359,7 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description Status
+              Status
             </label>
             <div className="relative">
               <textarea
@@ -246,7 +370,7 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none ${
                   isEditing ? 'border-gray-300' : 'border-gray-200 bg-gray-50'
                 }`}
-                placeholder="Tell people about yourself..."
+                placeholder="Tell people about yourself"
                 maxLength={200}
               />
               {!isEditing && (

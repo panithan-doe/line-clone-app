@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { MessageCircle } from "lucide-react";
 import { ChatSidebar } from "./ChatSidebar";
 import { ChatRoom } from "./ChatRoom";
-import { getCurrentUser, signOut } from "aws-amplify/auth";
+import { signOut } from "aws-amplify/auth";
 import { getUrl } from 'aws-amplify/storage';
 import { client } from "../../lib/amplify";
-import type { ChatRoom as ChatRoomType, Message, User as AppUser } from "../../types";
+import { onCreateMessage, onUpdateChatRoom } from "../../../subscriptions";
+import type { ChatRoom as ChatRoomType, Message } from "../../types";
 
 interface ChatAppProps {
   user: any; // User from Cognito with attributes
@@ -18,6 +19,10 @@ export function ChatApp({ user }: ChatAppProps) {
   const [loading, setLoading] = useState(true);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [profilePictureCache, setProfilePictureCache] = useState<Record<string, string | null>>({});
+
+  // Debug user data
+  console.log('ChatApp - User data:', user);
+  console.log('ChatApp - User email:', user?.attributes?.email);
 
   // Helper function to convert Amplify data to Message type
   const convertToMessage = (amplifyMessage: any): Message => {
@@ -193,11 +198,30 @@ export function ChatApp({ user }: ChatAppProps) {
                 console.log('Using cached avatar for:', otherMember.userId);
               } else {
                 try {
-                  const { data: userData } = await client.models.User.get({
+                  console.log('About to load other user data for:', otherMember.userId);
+                  
+                  // Try direct model access first (preferred)
+                  const { data: directUserData } = await client.models.User.get({
                     email: otherMember.userId
                   });
                   
-                  console.log('Other user data:', userData);
+                  let userData = directUserData;
+                  
+                  // If direct access fails, try Lambda as fallback
+                  if (!userData) {
+                    console.log('Direct access failed, trying Lambda fallback for:', otherMember.userId);
+                    try {
+                      const userResponse = await client.queries.verifyUser({
+                        email: otherMember.userId
+                      });
+                      userData = userResponse?.data as any || null;
+                    } catch (lambdaError) {
+                      console.error('Lambda fallback also failed:', lambdaError);
+                      userData = null;
+                    }
+                  }
+                  
+                  console.log('Final user data:', userData);
                   
                   if (userData?.avatar) {
                     console.log('Other user avatar path:', userData.avatar);
@@ -231,9 +255,30 @@ export function ChatApp({ user }: ChatAppProps) {
               let otherUserNickname = otherMember.userNickname || otherMember.userId;
               
               try {
-                const { data: userData } = await client.models.User.get({
+                console.log('Loading user nickname for:', otherMember.userId);
+                
+                // Try direct model access first
+                const { data: directUserData } = await client.models.User.get({
                   email: otherMember.userId
                 });
+                
+                let userData = directUserData;
+                
+                // If direct access fails, try Lambda as fallback
+                if (!userData) {
+                  console.log('Direct access failed for nickname, trying Lambda fallback');
+                  try {
+                    const userResponse = await client.queries.verifyUser({
+                      email: otherMember.userId
+                    });
+                    userData = userResponse?.data as any || null;
+                  } catch (lambdaError) {
+                    console.error('Lambda fallback for nickname also failed:', lambdaError);
+                    userData = null;
+                  }
+                }
+                
+                console.log('Final user data for nickname:', userData);
                 
                 if (userData?.nickname) {
                   otherUserNickname = userData.nickname;
@@ -268,6 +313,9 @@ export function ChatApp({ user }: ChatAppProps) {
         // Fetch unread counts for all rooms
         const roomIds = validRooms.map(room => room.id);
         await fetchUnreadCounts(roomIds);
+      } else {
+        console.log('No chat room memberships found for user');
+        setChatRooms([]);
       }
     } catch (error) {
       console.error('Error fetching chat rooms:', error);
@@ -279,6 +327,54 @@ export function ChatApp({ user }: ChatAppProps) {
   useEffect(() => {
     fetchChatRooms();
   }, []);
+
+  // Set up global message subscription for unread count updates in sidebar
+  useEffect(() => {
+    console.log('=== USEEFFECT 1: Global message subscription ===');
+    console.log('Dependencies - selectedRoom?.id:', selectedRoom?.id, 'user.attributes.email:', user?.attributes?.email);
+    console.log('Setting up global message subscription for unread counts');
+    
+    const globalMessageSubscription = client.graphql({
+      query: onCreateMessage
+    }).subscribe({
+      next: ({ data }) => {
+        const newMessage = data.onCreateMessage;
+        console.log('🟢 Global message received:', newMessage);
+        
+        if (newMessage && newMessage.senderId !== user.attributes.email) {
+          // Update unread count for this room if it's not the currently selected room
+          if (selectedRoom?.id !== newMessage.chatRoomId) {
+            setUnreadCounts(prev => ({
+              ...prev,
+              [newMessage.chatRoomId]: (prev[newMessage.chatRoomId] || 0) + 1
+            }));
+
+            // Update the chat room's lastMessage and lastMessageAt for proper sorting
+            // This is crucial for rooms that are not currently open
+            setChatRooms((prev) =>
+              prev.map((room) =>
+                room.id === newMessage.chatRoomId
+                  ? {
+                      ...room,
+                      lastMessage: newMessage.content || '',
+                      lastMessageAt: newMessage.createdAt || new Date().toISOString(),
+                    }
+                  : room
+              )
+            );
+          }
+        }
+      },
+      error: (error) => {
+        console.error('🔴 Global message subscription error:', error);
+      }
+    });
+
+    return () => {
+      console.log('Cleaning up global message subscription');
+      globalMessageSubscription.unsubscribe();
+    };
+  }, [selectedRoom?.id, user?.attributes?.email]);
 
   // Mark messages as read
   const markMessagesAsRead = async (roomId: string) => {
@@ -406,6 +502,120 @@ export function ChatApp({ user }: ChatAppProps) {
     }
   }, [selectedRoom]);
 
+  // Set up real-time subscriptions for new messages
+  useEffect(() => {
+    console.log('=== USEEFFECT 2: Room message subscription ===');
+    console.log('Dependencies - selectedRoom?.id:', selectedRoom?.id, 'user.attributes.email:', user?.attributes?.email);
+    if (!selectedRoom) {
+      console.log('No selected room, skipping subscription setup');
+      return;
+    }
+
+    console.log('Setting up message subscription for room:', selectedRoom.id);
+    
+    const messageSubscription = client.graphql({
+      query: onCreateMessage,
+      variables: {
+        filter: {
+          chatRoomId: {
+            eq: selectedRoom.id
+          }
+        }
+      }
+    }).subscribe({
+      next: ({ data }) => {
+        console.log('🟢 New message received in room:', data.onCreateMessage);
+        const newMessage = data.onCreateMessage;
+        
+        if (newMessage && newMessage.senderId !== user.attributes.email) {
+          // Only add messages from other users to avoid duplicates
+          const convertedMessage = convertToMessage(newMessage);
+          setMessages((prev) => {
+            // Check if message already exists to avoid duplicates
+            const exists = prev.some(msg => msg.id === convertedMessage.id);
+            if (!exists) {
+              return [...prev, convertedMessage];
+            }
+            return prev;
+          });
+
+          // Update the chat room's lastMessage and lastMessageAt for proper sorting
+          setChatRooms((prev) =>
+            prev.map((room) =>
+              room.id === selectedRoom.id
+                ? {
+                    ...room,
+                    lastMessage: newMessage.content || '',
+                    lastMessageAt: newMessage.createdAt || new Date().toISOString(),
+                  }
+                : room
+            )
+          );
+
+          // Since we're in the current chat room, automatically mark this message as read
+          // No need to increment unread count for the current room
+          if (newMessage.id) {
+            markMessagesAsRead(selectedRoom.id);
+          }
+        }
+      },
+      error: (error) => {
+        console.error('Message subscription error:', error);
+      }
+    });
+
+    return () => {
+      console.log('Cleaning up message subscription');
+      messageSubscription.unsubscribe();
+    };
+  }, [selectedRoom?.id, user?.attributes?.email]);
+
+  // Set up real-time subscriptions for chat room updates (last message updates)
+  useEffect(() => {
+    console.log('=== USEEFFECT 3: Chat room update subscription ===');
+    console.log('Dependencies - selectedRoom?.id:', selectedRoom?.id);
+    console.log('Setting up chat room update subscription');
+    
+    const chatRoomSubscription = client.graphql({
+      query: onUpdateChatRoom
+    }).subscribe({
+      next: ({ data }) => {
+        console.log('🟢 Chat room updated:', data.onUpdateChatRoom);
+        const updatedRoom = data.onUpdateChatRoom;
+        
+        if (updatedRoom) {
+          // Update the chat room in the sidebar with new last message info
+          setChatRooms((prev) =>
+            prev.map((room) =>
+              room.id === updatedRoom.id
+                ? {
+                    ...room,
+                    lastMessage: updatedRoom.lastMessage || '',
+                    lastMessageAt: updatedRoom.lastMessageAt || '',
+                  }
+                : room
+            )
+          );
+
+          // If this update is for a room we're not currently viewing, 
+          // we might need to update unread counts
+          if (selectedRoom?.id !== updatedRoom.id) {
+            // Refresh unread counts for the updated room
+            fetchUnreadCounts([updatedRoom.id]);
+          }
+        }
+      },
+      error: (error) => {
+        console.error('Chat room subscription error:', error);
+      }
+    });
+
+    return () => {
+      console.log('Cleaning up chat room subscription');
+      chatRoomSubscription.unsubscribe();
+    };
+  }, [selectedRoom?.id]);
+
   const sendMessage = async (content: string) => {
     if (!selectedRoom || !user) return;
 
@@ -414,9 +624,30 @@ export function ChatApp({ user }: ChatAppProps) {
       let currentUserNickname = user.attributes.email;
       
       try {
-        const { data: userData } = await client.models.User.get({
+        console.log('Loading current user nickname for message sending...');
+        
+        // Try direct model access first
+        const { data: directUserData } = await client.models.User.get({
           email: user.attributes.email
         });
+        
+        let userData = directUserData;
+        
+        // If direct access fails, try Lambda as fallback
+        if (!userData) {
+          console.log('Direct access failed for current user, trying Lambda fallback');
+          try {
+            const userResponse = await client.queries.verifyUser({
+              email: user.attributes.email
+            });
+            userData = userResponse?.data as any || null;
+          } catch (lambdaError) {
+            console.error('Lambda fallback for current user also failed:', lambdaError);
+            userData = null;
+          }
+        }
+        
+        console.log('Final current user data for nickname:', userData);
         
         if (userData?.nickname) {
           currentUserNickname = userData.nickname;
@@ -425,29 +656,76 @@ export function ChatApp({ user }: ChatAppProps) {
         console.error('Error loading current user nickname:', err);
       }
       
-      // Create the message in the database
-      const { data: newMessage } = await client.models.Message.create({
-        content,
-        type: "text",
+      // Send message via Lambda function
+      console.log('Sending message with data:', {
         chatRoomId: selectedRoom.id,
+        content: content,
+        type: "text",
         senderId: user.attributes.email,
-        senderNickname: currentUserNickname,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        senderNickname: currentUserNickname
       });
+      
+      const messageResponse = await client.mutations.sendMessage({
+        chatRoomId: selectedRoom.id,
+        content: content,
+        type: "text",
+        senderId: user.attributes.email,
+        senderNickname: currentUserNickname
+      });
+      
+      console.log('Send message response:', messageResponse);
+      console.log('Send message errors:', messageResponse?.errors);
+      if (messageResponse?.errors) {
+        messageResponse.errors.forEach((error, index) => {
+          console.log(`Send message error ${index + 1}:`, error.message);
+          console.log('Error details:', error);
+        });
+      }
+      
+      const newMessage = messageResponse?.data;
+      
+      // If Lambda fails, try direct model access as fallback
+      let finalMessage = newMessage;
+      if (!newMessage && messageResponse?.errors) {
+        console.log('Lambda sendMessage failed, trying direct model access...');
+        try {
+          const { data: directMessage } = await client.models.Message.create({
+            content,
+            type: "text",
+            chatRoomId: selectedRoom.id,
+            senderId: user.attributes.email,
+            senderNickname: currentUserNickname,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+          finalMessage = directMessage;
+          console.log('Direct message creation succeeded:', finalMessage);
+          
+          // IMPORTANT: Update ChatRoom's lastMessage since Lambda didn't do it
+          // This ensures receivers see the correct lastMessage via real-time subscriptions
+          try {
+            await client.models.ChatRoom.update({
+              id: selectedRoom.id,
+              lastMessage: content,
+              lastMessageAt: new Date().toISOString()
+            });
+            console.log('ChatRoom lastMessage updated successfully after direct message creation');
+          } catch (updateError) {
+            console.error('Failed to update ChatRoom lastMessage:', updateError);
+          }
+        } catch (directError) {
+          console.error('Direct message creation also failed:', directError);
+        }
+      }
 
-      if (newMessage) {
+      if (finalMessage) {
         // Convert to Message type and add to local state
-        const convertedMessage = convertToMessage(newMessage);
+        const convertedMessage = convertToMessage(finalMessage);
         setMessages((prev) => [...prev, convertedMessage]);
 
-        // Update the chat room's last message
-        await client.models.ChatRoom.update({
-          id: selectedRoom.id,
-          lastMessage: content,
-          lastMessageAt: new Date().toISOString(),
-        });
+        // The Lambda function already updates the chat room's last message
+        // No need for manual update
 
         // Update local state for chat rooms
         setChatRooms((prev) =>

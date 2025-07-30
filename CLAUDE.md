@@ -26,6 +26,7 @@ This is a LINE-clone chat application built with React, TypeScript, Vite, and AW
 - **Authentication**: AWS Cognito (via Amplify Auth)
 - **Database**: AWS AppSync with DynamoDB (via Amplify Data)
 - **UI Components**: AWS Amplify UI React, Lucide React icons
+- **Server**: AWS Lambda as a main for accessing DynamoDB
 
 ### Project Structure
 - `/src/components/` - React components organized by feature

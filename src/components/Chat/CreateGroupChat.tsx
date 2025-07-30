@@ -135,68 +135,111 @@ export function CreateGroupChat({ currentUser, onClose, onGroupCreated }: Create
     setError('');
 
     try {
-      // Create the group chat room
-      const { data: newRoom } = await client.models.ChatRoom.create({
-        name: groupName.trim(),
-        type: 'group',
-        description: `Group chat: ${groupName.trim()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-
-      if (newRoom && newRoom.id) {
-        // Get current user's nickname from User table
-        let currentUserNickname = currentUser.attributes.email;
+      // Get current user's nickname first
+      let currentUserNickname = currentUser.attributes.email;
+      try {
+        console.log('Loading current user nickname for group creation...');
+        
+        // Try direct access first (more reliable)
+        let currentUserData = null;
         try {
-          const { data: currentUserData } = await client.models.User.get({
+          const { data: directUserData } = await client.models.User.get({
             email: currentUser.attributes.email
           });
-          if (currentUserData?.nickname) {
-            currentUserNickname = currentUserData.nickname;
-          }
-        } catch (err) {
-          console.error('Error loading current user nickname:', err);
-        }
-
-        // Add current user as admin
-        await client.models.ChatRoomMember.create({
-          chatRoomId: newRoom.id ?? '',
-          userId: currentUser.attributes.email,
-          userNickname: currentUserNickname,
-          role: 'admin',
-          joinedAt: new Date().toISOString(),
-        });
-
-        // Add selected friends as members
-        const memberPromises = Array.from(selectedFriends).map(async (friendId) => {
-          const friend = friends.find(f => f.id === friendId);
-          let friendNickname = friend?.nickname || friendId;
-          
-          // Get friend's current nickname from User table
-          try {
-            const { data: friendData } = await client.models.User.get({
-              email: friendId
-            });
-            if (friendData?.nickname) {
-              friendNickname = friendData.nickname;
-            }
-          } catch (err) {
-            console.error('Error loading friend nickname:', err);
-          }
-          
-          return client.models.ChatRoomMember.create({
-            chatRoomId: newRoom.id ?? '',
-            userId: friendId,
-            userNickname: friendNickname,
-            role: 'member',
-            joinedAt: new Date().toISOString(),
+          currentUserData = directUserData;
+          console.log('Direct user data result:', currentUserData);
+        } catch (directError) {
+          console.log('Direct access failed, trying Lambda...');
+          // If direct access fails, try Lambda as fallback
+          const userResponse = await client.queries.verifyUser({
+            email: currentUser.attributes.email
           });
+          currentUserData = userResponse?.data;
+          console.log('Lambda user data result:', currentUserData);
+        }
+        
+        if (currentUserData?.nickname) {
+          currentUserNickname = currentUserData.nickname;
+        }
+        console.log('Final current user nickname:', currentUserNickname);
+      } catch (err) {
+        console.error('Error loading current user nickname:', err);
+      }
+
+      // Try creating group chat with Lambda function first
+      let newRoom = null;
+      try {
+        console.log('Trying Lambda group chat creation...');
+        const lambdaResponse = await client.mutations.createGroupChat({
+          name: groupName.trim(),
+          description: `Group chat: ${groupName.trim()}`,
+          creatorId: currentUser.attributes.email,
+          creatorNickname: currentUserNickname,
+          memberIds: Array.from(selectedFriends)
         });
+        newRoom = lambdaResponse?.data;
+        console.log('Lambda group chat creation result:', newRoom);
+      } catch (lambdaError) {
+        console.error('Lambda group chat creation failed:', lambdaError);
+      }
 
-        await Promise.all(memberPromises);
+      // If Lambda failed, try direct model creation
+      if (!newRoom) {
+        console.log('Lambda failed, trying direct group chat creation...');
+        try {
+          const now = new Date().toISOString();
+          
+          // Create group chat room
+          const { data: createdRoom } = await client.models.ChatRoom.create({
+            name: groupName.trim(),
+            type: 'group',
+            description: `Group chat: ${groupName.trim()}`,
+            createdAt: now,
+            updatedAt: now
+          });
+          
+          if (createdRoom && createdRoom.id) {
+            // Add creator as admin
+            const memberPromises = [
+              client.models.ChatRoomMember.create({
+                chatRoomId: createdRoom.id,
+                userId: currentUser.attributes.email,
+                userNickname: currentUserNickname,
+                role: 'admin',
+                joinedAt: now
+              })
+            ];
+            
+            // Add selected friends as members
+            for (const friendId of selectedFriends) {
+              const friend = friends.find(f => f.id === friendId);
+              memberPromises.push(
+                client.models.ChatRoomMember.create({
+                  chatRoomId: createdRoom.id,
+                  userId: friendId,
+                  userNickname: friend?.nickname || friendId,
+                  role: 'member',
+                  joinedAt: now
+                })
+              );
+            }
+            
+            await Promise.all(memberPromises);
+            newRoom = createdRoom;
+            console.log('Direct group chat creation succeeded:', newRoom);
+          }
+        } catch (directError) {
+          console.error('Direct group chat creation also failed:', directError);
+        }
+      }
 
+      console.log('Final group chat room created:', newRoom);
+
+      if (newRoom) {
         onGroupCreated();
         onClose();
+      } else {
+        setError('Failed to create group chat');
       }
     } catch (err) {
       console.error('Error creating group:', err);

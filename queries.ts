@@ -80,16 +80,84 @@ export const getUser = /* GraphQL */ `query GetUser($email: String!) {
   getUser(email: $email) {
     avatar
     createdAt
+    description
     email
     id
     nickname
     owner
-    status
     updatedAt
     __typename
   }
 }
 ` as GeneratedQuery<APITypes.GetUserQueryVariables, APITypes.GetUserQuery>;
+export const listChatRoomMemberByChatRoomIdAndUserId = /* GraphQL */ `query ListChatRoomMemberByChatRoomIdAndUserId(
+  $chatRoomId: ID!
+  $filter: ModelChatRoomMemberFilterInput
+  $limit: Int
+  $nextToken: String
+  $sortDirection: ModelSortDirection
+  $userId: ModelStringKeyConditionInput
+) {
+  listChatRoomMemberByChatRoomIdAndUserId(
+    chatRoomId: $chatRoomId
+    filter: $filter
+    limit: $limit
+    nextToken: $nextToken
+    sortDirection: $sortDirection
+    userId: $userId
+  ) {
+    items {
+      chatRoomId
+      createdAt
+      id
+      joinedAt
+      role
+      updatedAt
+      userId
+      userNickname
+      __typename
+    }
+    nextToken
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.ListChatRoomMemberByChatRoomIdAndUserIdQueryVariables,
+  APITypes.ListChatRoomMemberByChatRoomIdAndUserIdQuery
+>;
+export const listChatRoomMemberByUserId = /* GraphQL */ `query ListChatRoomMemberByUserId(
+  $filter: ModelChatRoomMemberFilterInput
+  $limit: Int
+  $nextToken: String
+  $sortDirection: ModelSortDirection
+  $userId: String!
+) {
+  listChatRoomMemberByUserId(
+    filter: $filter
+    limit: $limit
+    nextToken: $nextToken
+    sortDirection: $sortDirection
+    userId: $userId
+  ) {
+    items {
+      chatRoomId
+      createdAt
+      id
+      joinedAt
+      role
+      updatedAt
+      userId
+      userNickname
+      __typename
+    }
+    nextToken
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.ListChatRoomMemberByUserIdQueryVariables,
+  APITypes.ListChatRoomMemberByUserIdQuery
+>;
 export const listChatRoomMembers = /* GraphQL */ `query ListChatRoomMembers(
   $filter: ModelChatRoomMemberFilterInput
   $id: ID
@@ -239,11 +307,11 @@ export const listUsers = /* GraphQL */ `query ListUsers(
     items {
       avatar
       createdAt
+      description
       email
       id
       nickname
       owner
-      status
       updatedAt
       __typename
     }
@@ -252,3 +320,20 @@ export const listUsers = /* GraphQL */ `query ListUsers(
   }
 }
 ` as GeneratedQuery<APITypes.ListUsersQueryVariables, APITypes.ListUsersQuery>;
+export const verifyUser = /* GraphQL */ `query VerifyUser($email: String!) {
+  verifyUser(email: $email) {
+    avatar
+    createdAt
+    description
+    email
+    id
+    nickname
+    owner
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedQuery<
+  APITypes.VerifyUserQueryVariables,
+  APITypes.VerifyUserQuery
+>;

@@ -49,6 +49,36 @@ export const createChatRoomMember = /* GraphQL */ `mutation CreateChatRoomMember
   APITypes.CreateChatRoomMemberMutationVariables,
   APITypes.CreateChatRoomMemberMutation
 >;
+export const createGroupChat = /* GraphQL */ `mutation CreateGroupChat(
+  $creatorId: String!
+  $creatorNickname: String!
+  $description: String
+  $memberIds: [String]!
+  $name: String!
+) {
+  createGroupChat(
+    creatorId: $creatorId
+    creatorNickname: $creatorNickname
+    description: $description
+    memberIds: $memberIds
+    name: $name
+  ) {
+    avatar
+    createdAt
+    description
+    id
+    lastMessage
+    lastMessageAt
+    name
+    type
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.CreateGroupChatMutationVariables,
+  APITypes.CreateGroupChatMutation
+>;
 export const createMessage = /* GraphQL */ `mutation CreateMessage(
   $condition: ModelMessageConditionInput
   $input: CreateMessageInput!
@@ -88,6 +118,34 @@ export const createMessageReadStatus = /* GraphQL */ `mutation CreateMessageRead
   APITypes.CreateMessageReadStatusMutationVariables,
   APITypes.CreateMessageReadStatusMutation
 >;
+export const createPrivateChat = /* GraphQL */ `mutation CreatePrivateChat(
+  $currentUserId: String!
+  $currentUserNickname: String!
+  $targetUserId: String!
+  $targetUserNickname: String!
+) {
+  createPrivateChat(
+    currentUserId: $currentUserId
+    currentUserNickname: $currentUserNickname
+    targetUserId: $targetUserId
+    targetUserNickname: $targetUserNickname
+  ) {
+    avatar
+    createdAt
+    description
+    id
+    lastMessage
+    lastMessageAt
+    name
+    type
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.CreatePrivateChatMutationVariables,
+  APITypes.CreatePrivateChatMutation
+>;
 export const createUser = /* GraphQL */ `mutation CreateUser(
   $condition: ModelUserConditionInput
   $input: CreateUserInput!
@@ -95,11 +153,11 @@ export const createUser = /* GraphQL */ `mutation CreateUser(
   createUser(condition: $condition, input: $input) {
     avatar
     createdAt
+    description
     email
     id
     nickname
     owner
-    status
     updatedAt
     __typename
   }
@@ -107,6 +165,21 @@ export const createUser = /* GraphQL */ `mutation CreateUser(
 ` as GeneratedMutation<
   APITypes.CreateUserMutationVariables,
   APITypes.CreateUserMutation
+>;
+export const createUserAfterAuth = /* GraphQL */ `mutation CreateUserAfterAuth(
+  $description: String
+  $email: String!
+  $nickname: String!
+) {
+  createUserAfterAuth(
+    description: $description
+    email: $email
+    nickname: $nickname
+  )
+}
+` as GeneratedMutation<
+  APITypes.CreateUserAfterAuthMutationVariables,
+  APITypes.CreateUserAfterAuthMutation
 >;
 export const deleteChatRoom = /* GraphQL */ `mutation DeleteChatRoom(
   $condition: ModelChatRoomConditionInput
@@ -195,11 +268,11 @@ export const deleteUser = /* GraphQL */ `mutation DeleteUser(
   deleteUser(condition: $condition, input: $input) {
     avatar
     createdAt
+    description
     email
     id
     nickname
     owner
-    status
     updatedAt
     __typename
   }
@@ -207,6 +280,36 @@ export const deleteUser = /* GraphQL */ `mutation DeleteUser(
 ` as GeneratedMutation<
   APITypes.DeleteUserMutationVariables,
   APITypes.DeleteUserMutation
+>;
+export const sendMessage = /* GraphQL */ `mutation SendMessage(
+  $chatRoomId: String!
+  $content: String!
+  $senderId: String!
+  $senderNickname: String!
+  $type: String
+) {
+  sendMessage(
+    chatRoomId: $chatRoomId
+    content: $content
+    senderId: $senderId
+    senderNickname: $senderNickname
+    type: $type
+  ) {
+    chatRoomId
+    content
+    createdAt
+    id
+    isRead
+    senderId
+    senderNickname
+    type
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.SendMessageMutationVariables,
+  APITypes.SendMessageMutation
 >;
 export const updateChatRoom = /* GraphQL */ `mutation UpdateChatRoom(
   $condition: ModelChatRoomConditionInput
@@ -288,6 +391,23 @@ export const updateMessageReadStatus = /* GraphQL */ `mutation UpdateMessageRead
   APITypes.UpdateMessageReadStatusMutationVariables,
   APITypes.UpdateMessageReadStatusMutation
 >;
+export const updateProfileImage = /* GraphQL */ `mutation UpdateProfileImage(
+  $fileName: String!
+  $fileSize: Int!
+  $fileType: String!
+  $userId: String!
+) {
+  updateProfileImage(
+    fileName: $fileName
+    fileSize: $fileSize
+    fileType: $fileType
+    userId: $userId
+  )
+}
+` as GeneratedMutation<
+  APITypes.UpdateProfileImageMutationVariables,
+  APITypes.UpdateProfileImageMutation
+>;
 export const updateUser = /* GraphQL */ `mutation UpdateUser(
   $condition: ModelUserConditionInput
   $input: UpdateUserInput!
@@ -295,11 +415,11 @@ export const updateUser = /* GraphQL */ `mutation UpdateUser(
   updateUser(condition: $condition, input: $input) {
     avatar
     createdAt
+    description
     email
     id
     nickname
     owner
-    status
     updatedAt
     __typename
   }
@@ -307,4 +427,29 @@ export const updateUser = /* GraphQL */ `mutation UpdateUser(
 ` as GeneratedMutation<
   APITypes.UpdateUserMutationVariables,
   APITypes.UpdateUserMutation
+>;
+export const updateUserProfile = /* GraphQL */ `mutation UpdateUserProfile(
+  $description: String
+  $email: String!
+  $nickname: String
+) {
+  updateUserProfile(
+    description: $description
+    email: $email
+    nickname: $nickname
+  ) {
+    avatar
+    createdAt
+    description
+    email
+    id
+    nickname
+    owner
+    updatedAt
+    __typename
+  }
+}
+` as GeneratedMutation<
+  APITypes.UpdateUserProfileMutationVariables,
+  APITypes.UpdateUserProfileMutation
 >;

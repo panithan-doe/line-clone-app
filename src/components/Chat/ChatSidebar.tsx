@@ -46,9 +46,21 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
 
   const loadUserProfile = async () => {
     try {
-      const { data: userData } = await client.models.User.get({
-        email: user.attributes.email
-      });
+      console.log('Loading user profile...');
+      
+      // Use Lambda method (same as UserProfile component)
+      let userData = null;
+      try {
+        const userResponse = await client.queries.verifyUser({
+          email: user.attributes.email
+        });
+        userData = userResponse?.data;
+        console.log('ChatSidebar Lambda user profile result:', userData);
+      } catch (error) {
+        console.error('ChatSidebar: Error loading user profile via Lambda:', error);
+      }
+      
+      console.log('ChatSidebar final user data:', userData);
       
       if (userData) {
         setUserDescription(userData.description || '');
@@ -59,10 +71,7 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
           console.log('Current user avatar path:', userData.avatar);
           try {
             const { url } = await getUrl({
-              key: userData.avatar,
-              options: {
-                accessLevel: 'guest'
-              }
+              key: userData.avatar
             });
             setProfilePicture(url.toString());
             console.log('Current user avatar URL:', url.toString());
@@ -103,7 +112,7 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
                 {userNickname || user.attributes.email || 'User'}
               </h1>
               <p className="text-sm text-gray-500 truncate">
-                {userDescription || 'No status yet...'}
+                {userDescription || ''}
               </p>
             </div>
           </div>
@@ -149,7 +158,6 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
         ) : (
           <div className="divide-y divide-gray-100">
             {filteredRooms.map((room) => {
-              console.log('Room in sidebar:', room.name, 'Type:', room.type, 'Avatar:', room.otherUserAvatar);
               return (
                 <div
                   key={room.id}

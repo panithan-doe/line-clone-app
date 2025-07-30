@@ -54,11 +54,11 @@ export type User = {
   __typename: "User",
   avatar?: string | null,
   createdAt?: string | null,
+  description?: string | null,
   email: string,
   id?: string | null,
   nickname: string,
   owner?: string | null,
-  status?: string | null,
   updatedAt?: string | null,
 };
 
@@ -138,6 +138,16 @@ export enum ModelSortDirection {
 }
 
 
+export type ModelStringKeyConditionInput = {
+  beginsWith?: string | null,
+  between?: Array< string | null > | null,
+  eq?: string | null,
+  ge?: string | null,
+  gt?: string | null,
+  le?: string | null,
+  lt?: string | null,
+};
+
 export type ModelChatRoomMemberConnection = {
   __typename: "ModelChatRoomMemberConnection",
   items:  Array<ChatRoomMember | null >,
@@ -215,13 +225,13 @@ export type ModelUserFilterInput = {
   and?: Array< ModelUserFilterInput | null > | null,
   avatar?: ModelStringInput | null,
   createdAt?: ModelStringInput | null,
+  description?: ModelStringInput | null,
   email?: ModelStringInput | null,
   id?: ModelIDInput | null,
   nickname?: ModelStringInput | null,
   not?: ModelUserFilterInput | null,
   or?: Array< ModelUserFilterInput | null > | null,
   owner?: ModelStringInput | null,
-  status?: ModelStringInput | null,
   updatedAt?: ModelStringInput | null,
 };
 
@@ -328,21 +338,22 @@ export type ModelUserConditionInput = {
   and?: Array< ModelUserConditionInput | null > | null,
   avatar?: ModelStringInput | null,
   createdAt?: ModelStringInput | null,
+  description?: ModelStringInput | null,
   nickname?: ModelStringInput | null,
   not?: ModelUserConditionInput | null,
   or?: Array< ModelUserConditionInput | null > | null,
   owner?: ModelStringInput | null,
-  status?: ModelStringInput | null,
   updatedAt?: ModelStringInput | null,
 };
 
 export type CreateUserInput = {
   avatar?: string | null,
   createdAt?: string | null,
+  description?: string | null,
   email: string,
   id?: string | null,
   nickname: string,
-  status?: string | null,
+  owner?: string | null,
   updatedAt?: string | null,
 };
 
@@ -410,10 +421,11 @@ export type UpdateMessageReadStatusInput = {
 export type UpdateUserInput = {
   avatar?: string | null,
   createdAt?: string | null,
+  description?: string | null,
   email: string,
   id?: string | null,
   nickname?: string | null,
-  status?: string | null,
+  owner?: string | null,
   updatedAt?: string | null,
 };
 
@@ -508,12 +520,12 @@ export type ModelSubscriptionUserFilterInput = {
   and?: Array< ModelSubscriptionUserFilterInput | null > | null,
   avatar?: ModelSubscriptionStringInput | null,
   createdAt?: ModelSubscriptionStringInput | null,
+  description?: ModelSubscriptionStringInput | null,
   email?: ModelSubscriptionStringInput | null,
   id?: ModelSubscriptionIDInput | null,
   nickname?: ModelSubscriptionStringInput | null,
   or?: Array< ModelSubscriptionUserFilterInput | null > | null,
   owner?: ModelStringInput | null,
-  status?: ModelSubscriptionStringInput | null,
   updatedAt?: ModelSubscriptionStringInput | null,
 };
 
@@ -598,12 +610,65 @@ export type GetUserQuery = {
     __typename: "User",
     avatar?: string | null,
     createdAt?: string | null,
+    description?: string | null,
     email: string,
     id?: string | null,
     nickname: string,
     owner?: string | null,
-    status?: string | null,
     updatedAt?: string | null,
+  } | null,
+};
+
+export type ListChatRoomMemberByChatRoomIdAndUserIdQueryVariables = {
+  chatRoomId: string,
+  filter?: ModelChatRoomMemberFilterInput | null,
+  limit?: number | null,
+  nextToken?: string | null,
+  sortDirection?: ModelSortDirection | null,
+  userId?: ModelStringKeyConditionInput | null,
+};
+
+export type ListChatRoomMemberByChatRoomIdAndUserIdQuery = {
+  listChatRoomMemberByChatRoomIdAndUserId?:  {
+    __typename: "ModelChatRoomMemberConnection",
+    items:  Array< {
+      __typename: "ChatRoomMember",
+      chatRoomId: string,
+      createdAt: string,
+      id: string,
+      joinedAt?: string | null,
+      role?: string | null,
+      updatedAt: string,
+      userId: string,
+      userNickname: string,
+    } | null >,
+    nextToken?: string | null,
+  } | null,
+};
+
+export type ListChatRoomMemberByUserIdQueryVariables = {
+  filter?: ModelChatRoomMemberFilterInput | null,
+  limit?: number | null,
+  nextToken?: string | null,
+  sortDirection?: ModelSortDirection | null,
+  userId: string,
+};
+
+export type ListChatRoomMemberByUserIdQuery = {
+  listChatRoomMemberByUserId?:  {
+    __typename: "ModelChatRoomMemberConnection",
+    items:  Array< {
+      __typename: "ChatRoomMember",
+      chatRoomId: string,
+      createdAt: string,
+      id: string,
+      joinedAt?: string | null,
+      role?: string | null,
+      updatedAt: string,
+      userId: string,
+      userNickname: string,
+    } | null >,
+    nextToken?: string | null,
   } | null,
 };
 
@@ -726,14 +791,32 @@ export type ListUsersQuery = {
       __typename: "User",
       avatar?: string | null,
       createdAt?: string | null,
+      description?: string | null,
       email: string,
       id?: string | null,
       nickname: string,
       owner?: string | null,
-      status?: string | null,
       updatedAt?: string | null,
     } | null >,
     nextToken?: string | null,
+  } | null,
+};
+
+export type VerifyUserQueryVariables = {
+  email: string,
+};
+
+export type VerifyUserQuery = {
+  verifyUser?:  {
+    __typename: "User",
+    avatar?: string | null,
+    createdAt?: string | null,
+    description?: string | null,
+    email: string,
+    id?: string | null,
+    nickname: string,
+    owner?: string | null,
+    updatedAt?: string | null,
   } | null,
 };
 
@@ -776,6 +859,29 @@ export type CreateChatRoomMemberMutation = {
   } | null,
 };
 
+export type CreateGroupChatMutationVariables = {
+  creatorId: string,
+  creatorNickname: string,
+  description?: string | null,
+  memberIds: Array< string | null >,
+  name: string,
+};
+
+export type CreateGroupChatMutation = {
+  createGroupChat?:  {
+    __typename: "ChatRoom",
+    avatar?: string | null,
+    createdAt?: string | null,
+    description?: string | null,
+    id: string,
+    lastMessage?: string | null,
+    lastMessageAt?: string | null,
+    name: string,
+    type: string,
+    updatedAt?: string | null,
+  } | null,
+};
+
 export type CreateMessageMutationVariables = {
   condition?: ModelMessageConditionInput | null,
   input: CreateMessageInput,
@@ -813,6 +919,28 @@ export type CreateMessageReadStatusMutation = {
   } | null,
 };
 
+export type CreatePrivateChatMutationVariables = {
+  currentUserId: string,
+  currentUserNickname: string,
+  targetUserId: string,
+  targetUserNickname: string,
+};
+
+export type CreatePrivateChatMutation = {
+  createPrivateChat?:  {
+    __typename: "ChatRoom",
+    avatar?: string | null,
+    createdAt?: string | null,
+    description?: string | null,
+    id: string,
+    lastMessage?: string | null,
+    lastMessageAt?: string | null,
+    name: string,
+    type: string,
+    updatedAt?: string | null,
+  } | null,
+};
+
 export type CreateUserMutationVariables = {
   condition?: ModelUserConditionInput | null,
   input: CreateUserInput,
@@ -823,13 +951,23 @@ export type CreateUserMutation = {
     __typename: "User",
     avatar?: string | null,
     createdAt?: string | null,
+    description?: string | null,
     email: string,
     id?: string | null,
     nickname: string,
     owner?: string | null,
-    status?: string | null,
     updatedAt?: string | null,
   } | null,
+};
+
+export type CreateUserAfterAuthMutationVariables = {
+  description?: string | null,
+  email: string,
+  nickname: string,
+};
+
+export type CreateUserAfterAuthMutation = {
+  createUserAfterAuth?: string | null,
 };
 
 export type DeleteChatRoomMutationVariables = {
@@ -918,11 +1056,34 @@ export type DeleteUserMutation = {
     __typename: "User",
     avatar?: string | null,
     createdAt?: string | null,
+    description?: string | null,
     email: string,
     id?: string | null,
     nickname: string,
     owner?: string | null,
-    status?: string | null,
+    updatedAt?: string | null,
+  } | null,
+};
+
+export type SendMessageMutationVariables = {
+  chatRoomId: string,
+  content: string,
+  senderId: string,
+  senderNickname: string,
+  type?: string | null,
+};
+
+export type SendMessageMutation = {
+  sendMessage?:  {
+    __typename: "Message",
+    chatRoomId: string,
+    content: string,
+    createdAt?: string | null,
+    id: string,
+    isRead?: boolean | null,
+    senderId: string,
+    senderNickname: string,
+    type?: string | null,
     updatedAt?: string | null,
   } | null,
 };
@@ -1003,6 +1164,17 @@ export type UpdateMessageReadStatusMutation = {
   } | null,
 };
 
+export type UpdateProfileImageMutationVariables = {
+  fileName: string,
+  fileSize: number,
+  fileType: string,
+  userId: string,
+};
+
+export type UpdateProfileImageMutation = {
+  updateProfileImage?: string | null,
+};
+
 export type UpdateUserMutationVariables = {
   condition?: ModelUserConditionInput | null,
   input: UpdateUserInput,
@@ -1013,11 +1185,31 @@ export type UpdateUserMutation = {
     __typename: "User",
     avatar?: string | null,
     createdAt?: string | null,
+    description?: string | null,
     email: string,
     id?: string | null,
     nickname: string,
     owner?: string | null,
-    status?: string | null,
+    updatedAt?: string | null,
+  } | null,
+};
+
+export type UpdateUserProfileMutationVariables = {
+  description?: string | null,
+  email: string,
+  nickname?: string | null,
+};
+
+export type UpdateUserProfileMutation = {
+  updateUserProfile?:  {
+    __typename: "User",
+    avatar?: string | null,
+    createdAt?: string | null,
+    description?: string | null,
+    email: string,
+    id?: string | null,
+    nickname: string,
+    owner?: string | null,
     updatedAt?: string | null,
   } | null,
 };
@@ -1104,11 +1296,11 @@ export type OnCreateUserSubscription = {
     __typename: "User",
     avatar?: string | null,
     createdAt?: string | null,
+    description?: string | null,
     email: string,
     id?: string | null,
     nickname: string,
     owner?: string | null,
-    status?: string | null,
     updatedAt?: string | null,
   } | null,
 };
@@ -1195,11 +1387,11 @@ export type OnDeleteUserSubscription = {
     __typename: "User",
     avatar?: string | null,
     createdAt?: string | null,
+    description?: string | null,
     email: string,
     id?: string | null,
     nickname: string,
     owner?: string | null,
-    status?: string | null,
     updatedAt?: string | null,
   } | null,
 };
@@ -1286,11 +1478,11 @@ export type OnUpdateUserSubscription = {
     __typename: "User",
     avatar?: string | null,
     createdAt?: string | null,
+    description?: string | null,
     email: string,
     id?: string | null,
     nickname: string,
     owner?: string | null,
-    status?: string | null,
     updatedAt?: string | null,
   } | null,
 };

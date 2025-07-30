@@ -21,25 +21,36 @@ export function AddFriend({ currentUser, onClose, onChatCreated }: AddFriendProp
     setError('');
 
     try {
-      // Search for users by email
-      const { data: users } = await client.models.User.list({
-        filter: {
-          email: {
-            eq: searchEmail.toLowerCase()
-          }
-        }
-      });
-
-      if (users && users.length > 0) {
-        // Filter out the current user
-        const filteredUsers = users.filter(
-          user => user.email !== currentUser.attributes.email
-        );
-        setSearchResults(filteredUsers);
+      console.log('Searching for user:', searchEmail.toLowerCase());
+      
+      // Try Lambda access first, then direct access as fallback
+      let userData = null;
+      try {
+        console.log('Trying Lambda search first...');
+        const userResponse = await client.queries.verifyUser({
+          email: searchEmail.toLowerCase()
+        });
+        userData = userResponse?.data;
+        console.log('Lambda user search result:', userData);
         
-        if (filteredUsers.length === 0) {
-          setError('No users found with this email');
+        // Only try direct access if Lambda fails
+        if (!userData) {
+          console.log('Lambda search failed, trying direct access...');
+          const { data: directUserData } = await client.models.User.get({
+            email: searchEmail.toLowerCase()
+          });
+          userData = directUserData;
+          console.log('Direct user search result:', userData);
         }
+      } catch (error) {
+        console.error('Error searching for user:', error);
+      }
+
+      if (userData && userData.email !== currentUser.attributes.email) {
+        setSearchResults([userData]);
+      } else if (userData?.email === currentUser.attributes.email) {
+        setError('Cannot add yourself as a friend');
+        setSearchResults([]);
       } else {
         setError('No users found with this email');
         setSearchResults([]);
@@ -97,49 +108,84 @@ export function AddFriend({ currentUser, onClose, onChatCreated }: AddFriendProp
       }
 
       // Create a new private chat room
-      const { data: newRoom } = await client.models.ChatRoom.create({
-        name: targetUser.nickname || targetUser.email,
-        type: 'private',
-        description: `Private chat with ${targetUser.nickname || targetUser.email}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-
-      console.log('New private chat room created:', newRoom);
-
-      if (newRoom && newRoom.id) {
-        // Get current user's nickname from User table
-        let currentUserNickname = currentUser.attributes.email;
-        try {
-          const { data: currentUserData } = await client.models.User.get({
-            email: currentUser.attributes.email
-          });
-          if (currentUserData?.nickname) {
-            currentUserNickname = currentUserData.nickname;
-          }
-        } catch (err) {
-          console.error('Error loading current user nickname:', err);
+      // Get current user's nickname first
+      let currentUserNickname = currentUser.attributes.email;
+      try {
+        const userResponse = await client.queries.verifyUser({
+          email: currentUser.attributes.email
+        });
+        const currentUserData = userResponse?.data;
+        if (currentUserData?.nickname) {
+          currentUserNickname = currentUserData.nickname;
         }
+      } catch (err) {
+        console.error('Error loading current user nickname:', err);
+      }
 
-        // Add both users as members
-        await client.models.ChatRoomMember.create({
-          chatRoomId: newRoom.id,
-          userId: currentUser.attributes.email,
-          userNickname: currentUserNickname,
-          role: 'member',
-          joinedAt: new Date().toISOString(),
+      // Try creating private chat with Lambda function first
+      let newRoom = null;
+      try {
+        const lambdaResponse = await client.mutations.createPrivateChat({
+          currentUserId: currentUser.attributes.email,
+          targetUserId: targetUser.email,
+          currentUserNickname: currentUserNickname,
+          targetUserNickname: targetUser.nickname || targetUser.email
         });
+        newRoom = lambdaResponse?.data;
+        console.log('Lambda private chat creation result:', newRoom);
+      } catch (lambdaError) {
+        console.error('Lambda private chat creation failed:', lambdaError);
+      }
 
-        await client.models.ChatRoomMember.create({
-          chatRoomId: newRoom.id,
-          userId: targetUser.email,
-          userNickname: targetUser.nickname || targetUser.email,
-          role: 'member',
-          joinedAt: new Date().toISOString(),
-        });
+      // If Lambda failed, try direct model creation
+      if (!newRoom) {
+        console.log('Lambda failed, trying direct private chat creation...');
+        try {
+          const now = new Date().toISOString();
+          
+          // Create chat room
+          const { data: createdRoom } = await client.models.ChatRoom.create({
+            name: targetUser.nickname || targetUser.email,
+            type: 'private',
+            description: `Private chat between ${currentUserNickname} and ${targetUser.nickname || targetUser.email}`,
+            createdAt: now,
+            updatedAt: now
+          });
+          
+          if (createdRoom && createdRoom.id) {
+            // Add both users as members
+            await Promise.all([
+              client.models.ChatRoomMember.create({
+                chatRoomId: createdRoom.id,
+                userId: currentUser.attributes.email,
+                userNickname: currentUserNickname,
+                role: 'member',
+                joinedAt: now
+              }),
+              client.models.ChatRoomMember.create({
+                chatRoomId: createdRoom.id,
+                userId: targetUser.email,
+                userNickname: targetUser.nickname || targetUser.email,
+                role: 'member',
+                joinedAt: now
+              })
+            ]);
+            
+            newRoom = createdRoom;
+            console.log('Direct private chat creation succeeded:', newRoom);
+          }
+        } catch (directError) {
+          console.error('Direct private chat creation also failed:', directError);
+        }
+      }
 
+      console.log('Final private chat room created:', newRoom);
+
+      if (newRoom) {
         onChatCreated();
         onClose();
+      } else {
+        setError('Failed to create private chat');
       }
     } catch (err) {
       console.error('Error creating private chat:', err);
@@ -169,7 +215,7 @@ export function AddFriend({ currentUser, onClose, onChatCreated }: AddFriendProp
               placeholder="Enter friend's email"
               value={searchEmail}
               onChange={(e) => setSearchEmail(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && searchUsers()}
+              onKeyDown={(e) => e.key === 'Enter' && searchUsers()}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             />
             <button
