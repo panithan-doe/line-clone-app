@@ -202,23 +202,25 @@ export function ChatApp({ user }: ChatAppProps) {
                 try {
                   console.log('About to load other user data for:', otherMember.userId);
                   
-                  // Try direct model access first (preferred)
-                  const { data: directUserData } = await client.models.User.get({
-                    email: otherMember.userId
-                  });
-                  
-                  let userData = directUserData;
-                  
-                  // If direct access fails, try Lambda as fallback
-                  if (!userData) {
-                    console.log('Direct access failed, trying Lambda fallback for:', otherMember.userId);
+                  // Try Lambda first (preferred)
+                  let userData = null;
+                  try {
+                    const userResponse = await client.queries.verifyUser({
+                      email: otherMember.userId
+                    });
+                    userData = userResponse?.data as any || null;
+                    console.log('Lambda user data result:', userData);
+                  } catch (lambdaError) {
+                    console.log('Lambda failed for user:', otherMember.userId, 'trying direct access');
+                    // Fallback to direct access
                     try {
-                      const userResponse = await client.queries.verifyUser({
+                      const { data: directUserData } = await client.models.User.get({
                         email: otherMember.userId
                       });
-                      userData = userResponse?.data as any || null;
-                    } catch (lambdaError) {
-                      console.error('Lambda fallback also failed:', lambdaError);
+                      userData = directUserData;
+                      console.log('Direct user data result:', userData);
+                    } catch (directError) {
+                      console.error('Both Lambda and direct access failed for user:', otherMember.userId);
                       userData = null;
                     }
                   }
@@ -259,23 +261,25 @@ export function ChatApp({ user }: ChatAppProps) {
               try {
                 console.log('Loading user nickname for:', otherMember.userId);
                 
-                // Try direct model access first
-                const { data: directUserData } = await client.models.User.get({
-                  email: otherMember.userId
-                });
-                
-                let userData = directUserData;
-                
-                // If direct access fails, try Lambda as fallback
-                if (!userData) {
-                  console.log('Direct access failed for nickname, trying Lambda fallback');
+                // Try Lambda first (preferred)
+                let userData = null;
+                try {
+                  const userResponse = await client.queries.verifyUser({
+                    email: otherMember.userId
+                  });
+                  userData = userResponse?.data as any || null;
+                  console.log('Lambda user data result for nickname:', userData);
+                } catch (lambdaError) {
+                  console.log('Lambda failed for nickname, trying direct access');
+                  // Fallback to direct access
                   try {
-                    const userResponse = await client.queries.verifyUser({
+                    const { data: directUserData } = await client.models.User.get({
                       email: otherMember.userId
                     });
-                    userData = userResponse?.data as any || null;
-                  } catch (lambdaError) {
-                    console.error('Lambda fallback for nickname also failed:', lambdaError);
+                    userData = directUserData;
+                    console.log('Direct user data result for nickname:', userData);
+                  } catch (directError) {
+                    console.error('Both Lambda and direct access failed for nickname:', directError);
                     userData = null;
                   }
                 }
@@ -671,23 +675,25 @@ export function ChatApp({ user }: ChatAppProps) {
       try {
         console.log('Loading current user nickname for message sending...');
         
-        // Try direct model access first
-        const { data: directUserData } = await client.models.User.get({
-          email: user.attributes.email
-        });
-        
-        let userData = directUserData;
-        
-        // If direct access fails, try Lambda as fallback
-        if (!userData) {
-          console.log('Direct access failed for current user, trying Lambda fallback');
+        // Try Lambda first (preferred)
+        let userData = null;
+        try {
+          const userResponse = await client.queries.verifyUser({
+            email: user.attributes.email
+          });
+          userData = userResponse?.data as any || null;
+          console.log('Lambda current user data result:', userData);
+        } catch (lambdaError) {
+          console.log('Lambda failed for current user, trying direct access');
+          // Fallback to direct access
           try {
-            const userResponse = await client.queries.verifyUser({
+            const { data: directUserData } = await client.models.User.get({
               email: user.attributes.email
             });
-            userData = userResponse?.data as any || null;
-          } catch (lambdaError) {
-            console.error('Lambda fallback for current user also failed:', lambdaError);
+            userData = directUserData;
+            console.log('Direct current user data result:', userData);
+          } catch (directError) {
+            console.error('Both Lambda and direct access failed for current user:', directError);
             userData = null;
           }
         }

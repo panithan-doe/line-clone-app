@@ -140,22 +140,27 @@ export function CreateGroupChat({ currentUser, onClose, onGroupCreated }: Create
       try {
         console.log('Loading current user nickname for group creation...');
         
-        // Try direct access first (more reliable)
+        // Try Lambda first (preferred)
         let currentUserData = null;
         try {
-          const { data: directUserData } = await client.models.User.get({
-            email: currentUser.attributes.email
-          });
-          currentUserData = directUserData;
-          console.log('Direct user data result:', currentUserData);
-        } catch (directError) {
-          console.log('Direct access failed, trying Lambda...');
-          // If direct access fails, try Lambda as fallback
           const userResponse = await client.queries.verifyUser({
             email: currentUser.attributes.email
           });
           currentUserData = userResponse?.data;
           console.log('Lambda user data result:', currentUserData);
+        } catch (lambdaError) {
+          console.log('Lambda failed, trying direct access...');
+          // Fallback to direct access
+          try {
+            const { data: directUserData } = await client.models.User.get({
+              email: currentUser.attributes.email
+            });
+            currentUserData = directUserData;
+            console.log('Direct user data result:', currentUserData);
+          } catch (directError) {
+            console.error('Both Lambda and direct access failed:', directError);
+            currentUserData = null;
+          }
         }
         
         if (currentUserData?.nickname) {
