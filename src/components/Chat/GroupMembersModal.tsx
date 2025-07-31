@@ -53,7 +53,6 @@ export function GroupMembersModal({ room, onClose, currentUser }: GroupMembersMo
               });
               userData = userResponse?.data;
             } catch {
-              console.log('Lambda failed for user:', membership.userId, 'trying direct access');
               // Fallback to direct access
               try {
                 const { data: directUserData } = await client.models.User.get({

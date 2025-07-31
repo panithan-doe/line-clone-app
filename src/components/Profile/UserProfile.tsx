@@ -27,27 +27,12 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
   const loadUserData = async () => {
     try {
       let userData = null;
-      // // Try direct access
-      // let userData = null;
-      // try {
-      //   console.log('UserProfile: Attempting direct user data access...');
-      //   const { data: directUserData } = await client.models.User.get({
-      //     email: user.attributes.email
-      //   });
-      //   userData = directUserData;
-      // } catch (directError) {
-      //   console.log('UserProfile: Direct access failed:', directError);
-      // }
-
       // Try Lambda
       try {
         const userResponse = await client.queries.verifyUser({
           email: user.attributes.email
         });
-        console.log('email: ', user.attributes.email);
-        console.log('userResponse', userResponse);
         userData = userResponse?.data;
-        console.log('UserProfile: Lambda user data result:', userData);
       } catch (lambdaError) {
         console.error('UserProfile: Lambda fallback also failed:', lambdaError);
       }
@@ -58,26 +43,21 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
         
         // Load profile picture if exists
         if (userData.avatar) {
-          console.log('userData: ',userData)
-          console.log('UserProfile: Avatar path found:', userData.avatar);
           setCurrentAvatarPath(userData.avatar); // Store the avatar path
           try {
             const { url } = await getUrl({
               key: userData.avatar
             });
-            console.log('UserProfile: Avatar URL generated:', url.toString());
             setProfilePicture(url.toString());
           } catch (err) {
             console.error('UserProfile: Error loading profile picture:', err);
             setProfilePicture(null);
           }
         } else {
-          console.log('UserProfile: No avatar path found');
           setCurrentAvatarPath(null);
           setProfilePicture(null);
         }
       } else {
-        console.log('UserProfile: No user data found');
         // Set defaults
         setNickname(user.attributes.email || '');
         setDescription('');
@@ -117,9 +97,6 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
       const userEmail = user.attributes?.email || user.userId || user.username;
       const fileName = `public/profile-pictures/${userEmail}/avatar.${fileExtension}`;
       
-      console.log('Uploading file to S3:', fileName);
-      console.log('File details:', { name: file.name, type: file.type, size: file.size });
-      
       // Step 1: Upload to S3 directly
       const { key } = await uploadData({
         key: fileName,
@@ -129,20 +106,17 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
         }
       }).result;
 
-      console.log('File uploaded successfully. S3 key:', key);
       
       // Step 2: Get URL for immediate preview
       const { url } = await getUrl({
         key: key
       });
       
-      console.log('Generated preview URL:', url.toString());
       setProfilePicture(url.toString());
       
       // Step 3: Update database using Lambda function to ensure proper authorization
       let updateSuccess = false;
       try {
-        console.log('Updating database with avatar path via Lambda:', key);
         const updateResult = await client.mutations.updateUserProfile({
           email: user.attributes.email,
           nickname: nickname, // Keep current nickname
@@ -150,14 +124,12 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
           avatar: key // Add avatar field
         });
         
-        console.log('Lambda updateUserProfile result:', updateResult);
         if (updateResult?.errors && updateResult.errors.length > 0) {
           console.error('Lambda updateUserProfile errors:', updateResult.errors);
           throw new Error(`Lambda errors: ${updateResult.errors.map(e => e.message).join(', ')}`);
         }
         updateSuccess = true;
         setCurrentAvatarPath(key); // Update the current avatar path
-        console.log('Database updated successfully via Lambda');
       } catch (updateError) {
         console.error('Failed to update database via Lambda:', updateError);
         setError('Failed to update profile in database');
@@ -166,11 +138,9 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
       
       // Step 4: Refresh user data
       if (updateSuccess) {
-        console.log('Avatar upload successful, refreshing data...');
         
         try {
           await loadUserData();
-          console.log('Avatar data refresh completed');
         } catch (refreshError) {
           console.error('Failed to refresh user data:', refreshError);
         }
@@ -204,23 +174,13 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
     try {
       // Try Lambda first
       let updateSuccess = false;
-      console.log('Trying Lambda updateUserProfile...errrrr');
       try {
-        console.log('Trying Lambda updateUserProfile...');
-        console.log('Updating profile with:', {
-          email: user.attributes.email,
-          nickname: nickname.trim(),
-          description: description.trim(),
-          avatar: currentAvatarPath,
-        });
         const updateResult = await client.mutations.updateUserProfile({
           email: user.attributes.email,
           nickname: nickname.trim(),
           description: description.trim(),
           avatar: currentAvatarPath, // Include the current avatar path
         });
-        console.log('Lambda updateUserProfile raw result:', updateResult);
-        console.log('Lambda updateUserProfile errors:', updateResult?.errors);
         if (updateResult?.errors && updateResult.errors.length > 0) {
           updateResult.errors.forEach((error, index) => {
             console.log(`Lambda updateUserProfile error ${index + 1}:`, error.message);
@@ -229,13 +189,11 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
           throw new Error(`Lambda errors: ${updateResult.errors.map(e => e.message).join(', ')}`);
         }
         updateSuccess = true;
-        console.log('Lambda updateUserProfile succeeded');
       } catch (lambdaError) {
         console.error('Lambda updateUserProfile failed:', lambdaError);
         
         // If Lambda fails, try direct model update as fallback
         try {
-          console.log('Trying direct User model update...');
           await client.models.User.update({
             email: user.attributes.email,
             nickname: nickname.trim(),
@@ -245,19 +203,16 @@ export function UserProfile({ user, onClose, onProfileUpdate }: UserProfileProps
             updatedAt: new Date().toISOString()
           });
           updateSuccess = true;
-          console.log('Direct User model update succeeded');
         } catch (directError) {
           console.error('Direct User model update also failed:', directError);
         }
       }
 
       if (updateSuccess) {
-        console.log('Profile update successful, refreshing data...');
         
         // Refresh the user data to get the latest values from database
         try {
           await loadUserData();
-          console.log('Profile data refresh completed');
         } catch (refreshError) {
           console.error('Failed to refresh user data after profile update:', refreshError);
           // Don't fail the whole operation if refresh fails

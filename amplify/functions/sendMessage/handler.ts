@@ -27,7 +27,6 @@ interface Message {
 }
 
 export const handler: AppSyncResolverHandler<SendMessageInput, Message> = async (event) => {
-  console.log('Send message event:', JSON.stringify(event, null, 2));
   
   const { chatRoomId, content, type = 'text', senderId, senderNickname } = event.arguments;
   
@@ -85,20 +84,10 @@ export const handler: AppSyncResolverHandler<SendMessageInput, Message> = async 
 
     // 4. Trigger subscription by creating the message again through AppSync
     // This is a workaround to trigger GraphQL subscriptions
-    try {
-      // Note: In a real implementation, we would use AppSync's internal GraphQL client
-      // For now, we'll rely on the frontend to handle the subscription triggering
-      console.log('Message created via DynamoDB, subscriptions may not be triggered automatically');
-    } catch (subscriptionError) {
-      console.error('Error triggering subscription:', subscriptionError);
-      // Don't fail the whole operation if subscription fails
-    }
     
-    console.log('Message sent successfully:', messageId);
     return message;
     
   } catch (error) {
-    console.error('Error sending message:', error);
     let errorMessage = 'Unknown error';
     if (error instanceof Error) {
       errorMessage = error.message;

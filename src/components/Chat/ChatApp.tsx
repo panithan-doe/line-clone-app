@@ -5,7 +5,6 @@ import { ChatRoom } from "./ChatRoom";
 import { signOut } from "aws-amplify/auth";
 import { getUrl } from 'aws-amplify/storage';
 import { client } from "../../lib/amplify";
-import { onCreateMessage, onUpdateChatRoom } from "../../../subscriptions";
 import type { ChatRoom as ChatRoomType, Message } from "../../types";
 
 interface ChatAppProps {
@@ -22,9 +21,6 @@ export function ChatApp({ user }: ChatAppProps) {
   const [userRole, setUserRole] = useState<string | undefined>(undefined);
   const [isCurrentChatUnavailable, setIsCurrentChatUnavailable] = useState(false);
 
-  // Debug user data
-  console.log('ChatApp - User data:', user);
-  console.log('ChatApp - User email:', user?.attributes?.email);
 
   // Helper function to convert Amplify data to Message type
   const convertToMessage = (amplifyMessage: any): Message => {
@@ -137,7 +133,6 @@ export function ChatApp({ user }: ChatAppProps) {
       
       setUnreadCounts(counts);
     } catch (error) {
-      console.error('Error fetching unread counts:', error);
     }
   };
 
@@ -187,8 +182,6 @@ export function ChatApp({ user }: ChatAppProps) {
               member.userId && member.userId !== user.attributes.email
             );
             
-            console.log('Private chat members:', allMembers);
-            console.log('Other member found:', otherMember);
             
             if (otherMember) {
               // Get the other user's profile data including avatar
@@ -197,10 +190,8 @@ export function ChatApp({ user }: ChatAppProps) {
               // Check cache first
               if (profilePictureCache[otherMember.userId]) {
                 otherUserAvatar = profilePictureCache[otherMember.userId];
-                console.log('Using cached avatar for:', otherMember.userId);
               } else {
                 try {
-                  console.log('About to load other user data for:', otherMember.userId);
                   
                   // Try Lambda first (preferred)
                   let userData = null;
@@ -209,26 +200,19 @@ export function ChatApp({ user }: ChatAppProps) {
                       email: otherMember.userId
                     });
                     userData = userResponse?.data as any || null;
-                    console.log('Lambda user data result:', userData);
                   } catch (lambdaError) {
-                    console.log('Lambda failed for user:', otherMember.userId, 'trying direct access');
                     // Fallback to direct access
                     try {
                       const { data: directUserData } = await client.models.User.get({
                         email: otherMember.userId
                       });
                       userData = directUserData;
-                      console.log('Direct user data result:', userData);
                     } catch (directError) {
-                      console.error('Both Lambda and direct access failed for user:', otherMember.userId);
                       userData = null;
                     }
                   }
                   
-                  console.log('Final user data:', userData);
-                  
                   if (userData?.avatar) {
-                    console.log('Other user avatar path:', userData.avatar);
                     try {
                       const { url } = await getUrl({
                         key: userData.avatar,
@@ -237,9 +221,7 @@ export function ChatApp({ user }: ChatAppProps) {
                         }
                       });
                       otherUserAvatar = url.toString();
-                      console.log('Other user avatar URL:', otherUserAvatar);
                     } catch (avatarError) {
-                      console.error('Error getting other user avatar URL:', avatarError);
                     }
                     
                     // Cache the profile picture
@@ -251,7 +233,6 @@ export function ChatApp({ user }: ChatAppProps) {
                     }
                   }
                 } catch (err) {
-                  console.error('Error loading other user avatar:', err);
                 }
               }
               
@@ -259,7 +240,6 @@ export function ChatApp({ user }: ChatAppProps) {
               let otherUserNickname = otherMember.userNickname || otherMember.userId;
               
               try {
-                console.log('Loading user nickname for:', otherMember.userId);
                 
                 // Try Lambda first (preferred)
                 let userData = null;
@@ -268,29 +248,22 @@ export function ChatApp({ user }: ChatAppProps) {
                     email: otherMember.userId
                   });
                   userData = userResponse?.data as any || null;
-                  console.log('Lambda user data result for nickname:', userData);
                 } catch (lambdaError) {
-                  console.log('Lambda failed for nickname, trying direct access');
                   // Fallback to direct access
                   try {
                     const { data: directUserData } = await client.models.User.get({
                       email: otherMember.userId
                     });
                     userData = directUserData;
-                    console.log('Direct user data result for nickname:', userData);
                   } catch (directError) {
-                    console.error('Both Lambda and direct access failed for nickname:', directError);
                     userData = null;
                   }
                 }
-                
-                console.log('Final user data for nickname:', userData);
                 
                 if (userData?.nickname) {
                   otherUserNickname = userData.nickname;
                 }
               } catch (err) {
-                console.error('Error loading other user nickname:', err);
               }
               
               // Use the other user's current nickname for display
@@ -301,11 +274,9 @@ export function ChatApp({ user }: ChatAppProps) {
                 otherUserId: otherMember.userId
               };
               
-              console.log('Creating room data:', roomData.name, 'Avatar:', roomData.otherUserAvatar);
               return roomData;
             } else {
               // No other member found - the other user left the chat
-              console.log('No other member found in private chat, showing as unavailable');
               const roomData = {
                 ...room,
                 name: 'Unavailable Chat',
@@ -332,11 +303,9 @@ export function ChatApp({ user }: ChatAppProps) {
         const roomIds = validRooms.map(room => room.id);
         await fetchUnreadCounts(roomIds);
       } else {
-        console.log('No chat room memberships found for user');
         setChatRooms([]);
       }
     } catch (error) {
-      console.error('Error fetching chat rooms:', error);
     } finally {
       setLoading(false);
     }
@@ -358,7 +327,6 @@ export function ChatApp({ user }: ChatAppProps) {
       const nowUnavailable = !isAvailable;
       
       if (wasUnavailable !== nowUnavailable) {
-        console.log('Chat availability changed:', isAvailable);
         setIsCurrentChatUnavailable(nowUnavailable);
         
         // If chat just became unavailable, update the room name in the sidebar
@@ -377,53 +345,6 @@ export function ChatApp({ user }: ChatAppProps) {
     };
   }, [selectedRoom, isCurrentChatUnavailable]);
 
-  // Set up global message subscription for unread count updates in sidebar
-  useEffect(() => {
-    console.log('=== USEEFFECT 1: Global message subscription ===');
-    console.log('Dependencies - selectedRoom?.id:', selectedRoom?.id, 'user.attributes.email:', user?.attributes?.email);
-    console.log('Setting up global message subscription for unread counts');
-    
-    const globalMessageSubscription = client.graphql({
-      query: onCreateMessage
-    }).subscribe({
-      next: ({ data }) => {
-        const newMessage = data.onCreateMessage;
-        console.log('🟢 Global message received:', newMessage);
-        
-        if (newMessage && newMessage.senderId !== user.attributes.email) {
-          // Update unread count for this room if it's not the currently selected room
-          if (selectedRoom?.id !== newMessage.chatRoomId) {
-            setUnreadCounts(prev => ({
-              ...prev,
-              [newMessage.chatRoomId]: (prev[newMessage.chatRoomId] || 0) + 1
-            }));
-
-            // Update the chat room's lastMessage and lastMessageAt for proper sorting
-            // This is crucial for rooms that are not currently open
-            setChatRooms((prev) =>
-              prev.map((room) =>
-                room.id === newMessage.chatRoomId
-                  ? {
-                      ...room,
-                      lastMessage: newMessage.content || '',
-                      lastMessageAt: newMessage.createdAt || new Date().toISOString(),
-                    }
-                  : room
-              )
-            );
-          }
-        }
-      },
-      error: (error) => {
-        console.error('🔴 Global message subscription error:', error);
-      }
-    });
-
-    return () => {
-      console.log('Cleaning up global message subscription');
-      globalMessageSubscription.unsubscribe();
-    };
-  }, [selectedRoom?.id, user?.attributes?.email]);
 
   // Mark messages as read
   const markMessagesAsRead = async (roomId: string) => {
@@ -513,7 +434,6 @@ export function ChatApp({ user }: ChatAppProps) {
         [roomId]: 0
       }));
     } catch (error) {
-      console.error('Error marking messages as read:', error);
     }
   };
 
@@ -541,7 +461,6 @@ export function ChatApp({ user }: ChatAppProps) {
       // Mark messages as read when room is opened
       await markMessagesAsRead(roomId);
     } catch (error) {
-      console.error('Error fetching messages:', error);
     }
   };
 
@@ -551,119 +470,121 @@ export function ChatApp({ user }: ChatAppProps) {
     }
   }, [selectedRoom]);
 
-  // Set up real-time subscriptions for new messages
+  // Set up real-time subscriptions for new messages using individual event subscriptions
   useEffect(() => {
-    console.log('=== USEEFFECT 2: Room message subscription ===');
-    console.log('Dependencies - selectedRoom?.id:', selectedRoom?.id, 'user.attributes.email:', user?.attributes?.email);
     if (!selectedRoom) {
-      console.log('No selected room, skipping subscription setup');
       return;
     }
-
-    console.log('Setting up message subscription for room:', selectedRoom.id);
     
-    const messageSubscription = client.graphql({
-      query: onCreateMessage,
-      variables: {
-        filter: {
-          chatRoomId: {
-            eq: selectedRoom.id
-          }
+    // Subscribe to message creation events for the current room
+    const createSubscription = client.models.Message.onCreate({
+      filter: {
+        chatRoomId: {
+          eq: selectedRoom.id
         }
       }
     }).subscribe({
-      next: ({ data }) => {
-        console.log('🟢 New message received in room:', data.onCreateMessage);
-        const newMessage = data.onCreateMessage;
-        
-        if (newMessage && newMessage.senderId !== user.attributes.email) {
-          // Only add messages from other users to avoid duplicates
-          const convertedMessage = convertToMessage(newMessage);
-          setMessages((prev) => {
-            // Check if message already exists to avoid duplicates
-            const exists = prev.some(msg => msg.id === convertedMessage.id);
-            if (!exists) {
-              return [...prev, convertedMessage];
-            }
+      next: async (newMessage) => {
+        const convertedMessage = convertToMessage(newMessage);
+        setMessages(prev => {
+          // Check if message already exists to avoid duplicates
+          const exists = prev.some(msg => msg.id === convertedMessage.id);
+          if (exists) {
             return prev;
+          }
+          // Add new message and sort
+          const updated = [...prev, convertedMessage].sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateA - dateB;
           });
+          return updated;
+        });
 
-          // Update the chat room's lastMessage and lastMessageAt for proper sorting
-          setChatRooms((prev) =>
-            prev.map((room) =>
-              room.id === selectedRoom.id
-                ? {
-                    ...room,
-                    lastMessage: newMessage.content || '',
-                    lastMessageAt: newMessage.createdAt || new Date().toISOString(),
-                  }
-                : room
-            )
-          );
-
-          // Since we're in the current chat room, automatically mark this message as read
-          // No need to increment unread count for the current room
-          if (newMessage.id) {
-            markMessagesAsRead(selectedRoom.id);
+        // If this message is not from the current user, mark it as read since they're viewing the room
+        if (newMessage.senderId !== user.attributes.email && newMessage.id && selectedRoom) {
+          try {
+            await markMessagesAsRead(selectedRoom.id);
+          } catch (error) {
           }
         }
       },
       error: (error) => {
-        console.error('Message subscription error:', error);
       }
     });
 
-    return () => {
-      console.log('Cleaning up message subscription');
-      messageSubscription.unsubscribe();
-    };
-  }, [selectedRoom?.id, user?.attributes?.email]);
-
-  // Set up real-time subscriptions for chat room updates (last message updates)
-  useEffect(() => {
-    console.log('=== USEEFFECT 3: Chat room update subscription ===');
-    console.log('Dependencies - selectedRoom?.id:', selectedRoom?.id);
-    console.log('Setting up chat room update subscription');
-    
-    const chatRoomSubscription = client.graphql({
-      query: onUpdateChatRoom
+    // Subscribe to message update events for the current room (for read status updates)
+    const updateSubscription = client.models.Message.onUpdate({
+      filter: {
+        chatRoomId: {
+          eq: selectedRoom.id
+        }
+      }
     }).subscribe({
-      next: ({ data }) => {
-        console.log('🟢 Chat room updated:', data.onUpdateChatRoom);
-        const updatedRoom = data.onUpdateChatRoom;
-        
-        if (updatedRoom) {
-          // Update the chat room in the sidebar with new last message info
-          setChatRooms((prev) =>
-            prev.map((room) =>
-              room.id === updatedRoom.id
-                ? {
-                    ...room,
-                    lastMessage: updatedRoom.lastMessage || '',
-                    lastMessageAt: updatedRoom.lastMessageAt || '',
-                  }
-                : room
-            )
-          );
-
-          // If this update is for a room we're not currently viewing, 
-          // we might need to update unread counts
-          if (selectedRoom?.id !== updatedRoom.id) {
-            // Refresh unread counts for the updated room
-            fetchUnreadCounts([updatedRoom.id]);
-          }
-        }
+      next: (updatedMessage) => {
+        const convertedMessage = convertToMessage(updatedMessage);
+        setMessages(prev => prev.map(msg => 
+          msg.id === convertedMessage.id ? convertedMessage : msg
+        ));
       },
       error: (error) => {
-        console.error('Chat room subscription error:', error);
       }
     });
 
     return () => {
-      console.log('Cleaning up chat room subscription');
-      chatRoomSubscription.unsubscribe();
+      createSubscription.unsubscribe();
+      updateSubscription.unsubscribe();
     };
   }, [selectedRoom?.id]);
+
+  // Set up global real-time subscription for sidebar updates (new messages in other rooms)
+  useEffect(() => {
+    
+    // Subscribe to all new message creations for updating sidebar and unread counts
+    const subscription = client.models.Message.onCreate().subscribe({
+      next: (newMessage) => {
+        
+        // Update chat rooms list with last message info (for all rooms) and sort by most recent
+        setChatRooms(prev => {
+          const updated = prev.map(room => {
+            if (room.id === newMessage.chatRoomId) {
+              return {
+                ...room,
+                lastMessage: newMessage.content || '',
+                lastMessageAt: newMessage.createdAt || new Date().toISOString()
+              };
+            }
+            return room;
+          });
+          
+          // Sort by most recent message
+          return updated.sort((a, b) => {
+            const dateA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+            const dateB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+            return dateB - dateA; // Most recent first
+          });
+        });
+        
+        // Update unread counts for rooms that received new messages 
+        // BUT only if the user is NOT currently viewing that room and didn't send the message
+        if (newMessage.senderId !== user.attributes.email && 
+            (!selectedRoom || selectedRoom.id !== newMessage.chatRoomId)) {
+          setUnreadCounts(prev => ({
+            ...prev,
+            [newMessage.chatRoomId]: (prev[newMessage.chatRoomId] || 0) + 1
+          }));
+        }
+      },
+      error: (error) => {
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user.attributes.email]);
+
+
 
   const sendMessage = async (content: string) => {
     if (!selectedRoom || !user) return;
@@ -673,7 +594,6 @@ export function ChatApp({ user }: ChatAppProps) {
       let currentUserNickname = user.attributes.email;
       
       try {
-        console.log('Loading current user nickname for message sending...');
         
         // Try Lambda first (preferred)
         let userData = null;
@@ -682,103 +602,75 @@ export function ChatApp({ user }: ChatAppProps) {
             email: user.attributes.email
           });
           userData = userResponse?.data as any || null;
-          console.log('Lambda current user data result:', userData);
         } catch (lambdaError) {
-          console.log('Lambda failed for current user, trying direct access');
           // Fallback to direct access
           try {
             const { data: directUserData } = await client.models.User.get({
               email: user.attributes.email
             });
             userData = directUserData;
-            console.log('Direct current user data result:', userData);
           } catch (directError) {
-            console.error('Both Lambda and direct access failed for current user:', directError);
             userData = null;
           }
         }
-        
-        console.log('Final current user data for nickname:', userData);
         
         if (userData?.nickname) {
           currentUserNickname = userData.nickname;
         }
       } catch (err) {
-        console.error('Error loading current user nickname:', err);
       }
       
-      // Send message via Lambda function
-      console.log('Sending message with data:', {
-        chatRoomId: selectedRoom.id,
-        content: content,
-        type: "text",
-        senderId: user.attributes.email,
-        senderNickname: currentUserNickname
-      });
+      // Use direct AppSync model creation to ensure subscriptions trigger properly
       
-      const messageResponse = await client.mutations.sendMessage({
-        chatRoomId: selectedRoom.id,
-        content: content,
-        type: "text",
-        senderId: user.attributes.email,
-        senderNickname: currentUserNickname
-      });
+      let finalMessage = null;
       
-      console.log('Send message response:', messageResponse);
-      console.log('Send message errors:', messageResponse?.errors);
-      if (messageResponse?.errors) {
-        messageResponse.errors.forEach((error, index) => {
-          console.log(`Send message error ${index + 1}:`, error.message);
-          console.log('Error details:', error);
+      try {
+        // Create message directly via AppSync model (this WILL trigger subscriptions)
+        const { data: directMessage } = await client.models.Message.create({
+          content,
+          type: "text",
+          chatRoomId: selectedRoom.id,
+          senderId: user.attributes.email,
+          senderNickname: currentUserNickname,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         });
-      }
-      
-      const newMessage = messageResponse?.data;
-      
-      // If Lambda fails, try direct model access as fallback
-      let finalMessage = newMessage;
-      if (!newMessage && messageResponse?.errors) {
-        console.log('Lambda sendMessage failed, trying direct model access...');
+        
+        finalMessage = directMessage;
+        
+        // Update ChatRoom's lastMessage
         try {
-          const { data: directMessage } = await client.models.Message.create({
-            content,
-            type: "text",
-            chatRoomId: selectedRoom.id,
-            senderId: user.attributes.email,
-            senderNickname: currentUserNickname,
-            isRead: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+          await client.models.ChatRoom.update({
+            id: selectedRoom.id,
+            lastMessage: content,
+            lastMessageAt: new Date().toISOString()
           });
-          finalMessage = directMessage;
-          console.log('Direct message creation succeeded:', finalMessage);
+        } catch (updateError) {
+        }
+        
+      } catch (directError) {
+        
+        // Fallback to Lambda if direct creation fails
+        try {
+          const messageResponse = await client.mutations.sendMessage({
+            chatRoomId: selectedRoom.id,
+            content: content,
+            type: "text",
+            senderId: user.attributes.email,
+            senderNickname: currentUserNickname
+          });
           
-          // IMPORTANT: Update ChatRoom's lastMessage since Lambda didn't do it
-          // This ensures receivers see the correct lastMessage via real-time subscriptions
-          try {
-            await client.models.ChatRoom.update({
-              id: selectedRoom.id,
-              lastMessage: content,
-              lastMessageAt: new Date().toISOString()
-            });
-            console.log('ChatRoom lastMessage updated successfully after direct message creation');
-          } catch (updateError) {
-            console.error('Failed to update ChatRoom lastMessage:', updateError);
-          }
-        } catch (directError) {
-          console.error('Direct message creation also failed:', directError);
+          finalMessage = messageResponse?.data;
+        } catch (lambdaError) {
         }
       }
 
       if (finalMessage) {
-        // Convert to Message type and add to local state
-        const convertedMessage = convertToMessage(finalMessage);
-        setMessages((prev) => [...prev, convertedMessage]);
-
-        // The Lambda function already updates the chat room's last message
-        // No need for manual update
-
-        // Update local state for chat rooms
+        // DO NOT add to local state here - let the subscription handle it
+        // This prevents duplicate messages since the subscription will add it automatically
+        
+        // Update local state for chat rooms (sidebar updates)
         setChatRooms((prev) =>
           prev.map((room) =>
             room.id === selectedRoom.id
@@ -795,7 +687,6 @@ export function ChatApp({ user }: ChatAppProps) {
         // since we're the sender and we don't count our own messages as unread
       }
     } catch (error) {
-      console.error('Error sending message:', error);
     }
   };
 
@@ -804,7 +695,6 @@ export function ChatApp({ user }: ChatAppProps) {
       await signOut();
       window.location.reload(); // force logout and trigger AuthWrapper to re-check
     } catch (error) {
-      console.error("Sign out failed:", error);
     }
   };
 
@@ -825,7 +715,6 @@ export function ChatApp({ user }: ChatAppProps) {
       }
       return 'member';
     } catch (error) {
-      console.error('Error fetching user role:', error);
       return 'member';
     }
   };
@@ -848,7 +737,6 @@ export function ChatApp({ user }: ChatAppProps) {
       }
       return false;
     } catch (error) {
-      console.error('Error checking chat availability:', error);
       return false;
     }
   };
@@ -861,7 +749,6 @@ export function ChatApp({ user }: ChatAppProps) {
     if (room.type === 'private') {
       const isAvailable = await checkChatAvailability(room.id);
       setIsCurrentChatUnavailable(!isAvailable);
-      console.log('Private chat availability:', isAvailable);
     } else {
       setIsCurrentChatUnavailable(false);
     }
@@ -870,7 +757,6 @@ export function ChatApp({ user }: ChatAppProps) {
     if (room.type === 'group') {
       const role = await fetchUserRole(room.id);
       setUserRole(role);
-      console.log('User role in group chat:', role);
     } else {
       setUserRole(undefined); // Private chats don't need role checking
     }
@@ -879,7 +765,6 @@ export function ChatApp({ user }: ChatAppProps) {
   // Remove chat (soft delete for private chats, hard delete for group chats by admin)
   const handleRemoveChat = async (roomId: string) => {
     try {
-      console.log('Removing chat:', roomId);
       
       // Find the user's membership in this chat room
       const { data: memberships } = await client.models.ChatRoomMember.list({
@@ -897,11 +782,8 @@ export function ChatApp({ user }: ChatAppProps) {
         // Handle group chat deletion (admin only)
         if (selectedRoom?.type === 'group') {
           if (membership.role !== 'admin') {
-            console.error('Only admins can remove group chats');
             return;
           }
-          
-          console.log('Admin is deleting entire group chat...');
           
           // Step 1: Get all members of the group
           const { data: allMemberships } = await client.models.ChatRoomMember.list({
@@ -919,7 +801,6 @@ export function ChatApp({ user }: ChatAppProps) {
             );
             
             await Promise.all(deletePromises);
-            console.log(`Removed ${allMemberships.length} members from group`);
           }
           
           // Step 3: Delete the chat room itself (optional - keeps message history)
@@ -929,20 +810,14 @@ export function ChatApp({ user }: ChatAppProps) {
             await client.models.ChatRoom.delete({
               id: roomId
             });
-            console.log('Chat room deleted completely');
           } catch (roomDeleteError) {
-            console.error('Error deleting chat room:', roomDeleteError);
           }
           */
-          
-          console.log('Group chat deleted successfully');
         } else {
           // Handle private chat removal (soft delete - only remove current user)
-          console.log('Removing user from private chat...');
           await client.models.ChatRoomMember.delete({
             id: membership.id
           });
-          console.log('Successfully removed from private chat');
         }
         
         // Update local state to remove the chat from sidebar
@@ -958,10 +833,8 @@ export function ChatApp({ user }: ChatAppProps) {
         // Refresh chat rooms to ensure consistency
         fetchChatRooms();
       } else {
-        console.error('Membership not found for chat room:', roomId);
       }
     } catch (error) {
-      console.error('Error removing from chat room:', error);
     }
   };
 

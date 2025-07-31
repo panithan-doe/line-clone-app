@@ -22,9 +22,7 @@ interface ChatRoom {
   updatedAt: string;
 }
 
-export const handler: AppSyncResolverHandler<CreatePrivateChatInput, ChatRoom> = async (event) => {
-  console.log('Create private chat event:', JSON.stringify(event, null, 2));
-  
+export const handler: AppSyncResolverHandler<CreatePrivateChatInput, ChatRoom> = async (event) => {  
   const { currentUserId, targetUserId, currentUserNickname, targetUserNickname } = event.arguments;
   
   if (!currentUserId || !targetUserId || !currentUserNickname || !targetUserNickname) {
@@ -69,7 +67,6 @@ export const handler: AppSyncResolverHandler<CreatePrivateChatInput, ChatRoom> =
         }));
         
         if (targetMembership.Items && targetMembership.Items.length > 0) {
-          console.log('Private chat already exists:', chatRoomId);
           return chatRoom.Item as ChatRoom;
         }
       }
@@ -143,11 +140,9 @@ export const handler: AppSyncResolverHandler<CreatePrivateChatInput, ChatRoom> =
       }))
     ]);
     
-    console.log('Private chat created successfully:', chatRoomId);
     return chatRoom;
     
   } catch (error) {
-    console.error('Error creating private chat:', error);
     let errorMessage = 'Unknown error';
     if (error instanceof Error) {
       errorMessage = error.message;

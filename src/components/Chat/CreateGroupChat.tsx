@@ -138,7 +138,6 @@ export function CreateGroupChat({ currentUser, onClose, onGroupCreated }: Create
       // Get current user's nickname first
       let currentUserNickname = currentUser.attributes.email;
       try {
-        console.log('Loading current user nickname for group creation...');
         
         // Try Lambda first (preferred)
         let currentUserData = null;
@@ -147,16 +146,13 @@ export function CreateGroupChat({ currentUser, onClose, onGroupCreated }: Create
             email: currentUser.attributes.email
           });
           currentUserData = userResponse?.data;
-          console.log('Lambda user data result:', currentUserData);
         } catch (lambdaError) {
-          console.log('Lambda failed, trying direct access...');
           // Fallback to direct access
           try {
             const { data: directUserData } = await client.models.User.get({
               email: currentUser.attributes.email
             });
             currentUserData = directUserData;
-            console.log('Direct user data result:', currentUserData);
           } catch (directError) {
             console.error('Both Lambda and direct access failed:', directError);
             currentUserData = null;
@@ -166,7 +162,6 @@ export function CreateGroupChat({ currentUser, onClose, onGroupCreated }: Create
         if (currentUserData?.nickname) {
           currentUserNickname = currentUserData.nickname;
         }
-        console.log('Final current user nickname:', currentUserNickname);
       } catch (err) {
         console.error('Error loading current user nickname:', err);
       }
@@ -174,7 +169,6 @@ export function CreateGroupChat({ currentUser, onClose, onGroupCreated }: Create
       // Try creating group chat with Lambda function first
       let newRoom = null;
       try {
-        console.log('Trying Lambda group chat creation...');
         const lambdaResponse = await client.mutations.createGroupChat({
           name: groupName.trim(),
           description: `Group chat: ${groupName.trim()}`,
@@ -183,14 +177,12 @@ export function CreateGroupChat({ currentUser, onClose, onGroupCreated }: Create
           memberIds: Array.from(selectedFriends)
         });
         newRoom = lambdaResponse?.data;
-        console.log('Lambda group chat creation result:', newRoom);
       } catch (lambdaError) {
         console.error('Lambda group chat creation failed:', lambdaError);
       }
 
       // If Lambda failed, try direct model creation
       if (!newRoom) {
-        console.log('Lambda failed, trying direct group chat creation...');
         try {
           const now = new Date().toISOString();
           
@@ -231,14 +223,11 @@ export function CreateGroupChat({ currentUser, onClose, onGroupCreated }: Create
             
             await Promise.all(memberPromises);
             newRoom = createdRoom;
-            console.log('Direct group chat creation succeeded:', newRoom);
           }
         } catch (directError) {
-          console.error('Direct group chat creation also failed:', directError);
         }
       }
 
-      console.log('Final group chat room created:', newRoom);
 
       if (newRoom) {
         onGroupCreated();

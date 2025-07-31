@@ -24,7 +24,6 @@ interface ChatRoom {
 }
 
 export const handler: AppSyncResolverHandler<CreateGroupChatInput, ChatRoom> = async (event) => {
-  console.log('Create group chat event:', JSON.stringify(event, null, 2));
   
   const { name, description, creatorId, creatorNickname, memberIds } = event.arguments;
   
@@ -104,13 +103,10 @@ export const handler: AppSyncResolverHandler<CreateGroupChatInput, ChatRoom> = a
     
     await Promise.all(membershipPromises);
     
-    console.log('Group chat created successfully:', chatRoomId);
-    console.log('Members added:', allMemberIds.length);
     
     return chatRoom;
     
   } catch (error) {
-    console.error('Error creating group chat:', error);
     throw new Error(`Failed to create group chat: ${(error as Error).message}`);
   }
 };

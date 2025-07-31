@@ -30,8 +30,6 @@ export function AuthWrapper() {
       const currentUser = await getCurrentUser();
       const attributes = await fetchUserAttributes();
       
-      console.log('Current user:', currentUser);
-      console.log('User attributes:', attributes);
       
       const mergedUser = {
         ...currentUser,
@@ -43,15 +41,12 @@ export function AuthWrapper() {
 
       setUser(mergedUser);
       setIsAuthenticated(true);
-      console.log('✅ User authenticated successfully');
     } catch (error) {
-      console.log('User not authenticated, showing login form. Error:', error);
       // Only sign out if it's not a "user not authenticated" error
       if (error && (error as any).name !== 'UserUnAuthenticatedException') {
         try {
           await signOut();
         } catch (signOutError) {
-          console.log('Sign out during auth check failed:', signOutError);
         }
       }
       setIsAuthenticated(false);
@@ -69,7 +64,6 @@ export function AuthWrapper() {
 
       // Try to get or create the user in our database
       try {
-        console.log('Checking if user exists in database...');
         
         // Try Lambda first for user verification (more reliable for user creation flow)
         let existingUser = null;
@@ -78,25 +72,19 @@ export function AuthWrapper() {
             email: cognitoUser.attributes.email
           });
           existingUser = userResponse?.data;
-          console.log('Lambda user check result:', existingUser);
         } catch (lambdaError) {
-          console.error('Lambda user check failed with error:', lambdaError);
-          console.log('Lambda user check failed, trying direct access');
           // If Lambda fails, try direct access
           try {
             const { data: directUser } = await client.models.User.get({
               email: cognitoUser.attributes.email
             });
             existingUser = directUser;
-            console.log('Direct user check result:', existingUser);
           } catch (directError) {
-            console.error('Direct user check also failed:', directError);
             // Continue with creation flow
           }
         }
 
         if (!existingUser) {
-          console.log('User not found in database, creating via Lambda...');
           
           // Try Lambda first as primary method
           try {
@@ -105,10 +93,7 @@ export function AuthWrapper() {
               nickname: cognitoUser.attributes.email,
               
             });
-            console.log('✅ User created via Lambda, result:', createResult);
           } catch (lambdaError) {
-            console.error('Lambda creation failed with error:', lambdaError);
-            console.log('Lambda creation failed, trying direct creation as fallback...');
             // If Lambda fails, try direct model creation as fallback
             try {
               const { data: newUser } = await client.models.User.create({
@@ -119,42 +104,32 @@ export function AuthWrapper() {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
               });
-              console.log('✅ User created directly as fallback:', newUser);
             } catch (directError) {
-              console.error('Direct creation also failed:', directError);
               throw directError;
             }
           }
         } else {
-          console.log('✅ User already exists in database');
         }
       } catch (getUserError: any) {
         // If get fails, try to create - this handles the case where user might not exist
         if (getUserError.message && getUserError.message.includes('not found')) {
-          console.log('User not found in database, creating...');
           try {
             const fallbackResult = await client.mutations.createUserAfterAuth({
               email: cognitoUser.attributes.email,
               nickname: cognitoUser.attributes.email, // Use email as default nickname
               description: ''
             });
-            console.log('✅ User created in database via fallback:', fallbackResult);
           } catch (createError: any) {
-            console.error('Fallback creation failed:', createError);
             // If creation fails due to duplicate, that's fine - user already exists
             if (createError.message && createError.message.includes('duplicate')) {
-              console.log('✅ User already exists (caught duplicate error)');
             } else {
-              console.error('Unexpected error during fallback creation:', createError);
             }
           }
         } else {
-          console.error('Error getting user:', getUserError);
         }
       }
       
     } catch (error) {
-      console.error('Error ensuring user exists:', error);
       // Don't throw error here to avoid breaking the login flow
     }
   };

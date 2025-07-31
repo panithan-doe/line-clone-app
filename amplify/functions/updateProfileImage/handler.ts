@@ -28,7 +28,6 @@ interface UpdateProfileImageResponse {
 }
 
 export const handler: AppSyncResolverHandler<UpdateProfileImageInput, UpdateProfileImageResponse> = async (event) => {
-  console.log('Update profile image event:', JSON.stringify(event, null, 2));
   
   const { userId, fileName, fileType, fileSize } = event.arguments;
   
@@ -70,9 +69,7 @@ export const handler: AppSyncResolverHandler<UpdateProfileImageInput, UpdateProf
           Bucket: process.env.S3_BUCKET_NAME,
           Key: currentUser.Item.avatar
         }));
-        console.log('Old profile image deleted:', currentUser.Item.avatar);
       } catch (deleteError) {
-        console.warn('Failed to delete old profile image:', deleteError);
         // Continue with upload even if deletion fails
       }
     }
@@ -105,7 +102,6 @@ export const handler: AppSyncResolverHandler<UpdateProfileImageInput, UpdateProf
       ReturnValues: 'ALL_NEW'
     }));
     
-    console.log('Profile image updated successfully:', imageKey);
     
     return {
       uploadUrl,
@@ -119,7 +115,6 @@ export const handler: AppSyncResolverHandler<UpdateProfileImageInput, UpdateProf
     };
     
   } catch (error) {
-    console.error('Error updating profile image:', error);
     throw new Error(`Failed to update profile image: ${(error as Error).message}`);
   }
 };

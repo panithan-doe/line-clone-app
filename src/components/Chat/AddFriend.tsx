@@ -21,26 +21,21 @@ export function AddFriend({ currentUser, onClose, onChatCreated }: AddFriendProp
     setError('');
 
     try {
-      console.log('Searching for user:', searchEmail.toLowerCase());
       
       // Try Lambda access first, then direct access as fallback
       let userData = null;
       try {
-        console.log('Trying Lambda search first...');
         const userResponse = await client.queries.verifyUser({
           email: searchEmail.toLowerCase()
         });
         userData = userResponse?.data;
-        console.log('Lambda user search result:', userData);
         
         // Only try direct access if Lambda fails
         if (!userData) {
-          console.log('Lambda search failed, trying direct access...');
           const { data: directUserData } = await client.models.User.get({
             email: searchEmail.toLowerCase()
           });
           userData = directUserData;
-          console.log('Direct user search result:', userData);
         }
       } catch (error) {
         console.error('Error searching for user:', error);
@@ -132,14 +127,12 @@ export function AddFriend({ currentUser, onClose, onChatCreated }: AddFriendProp
           targetUserNickname: targetUser.nickname || targetUser.email
         });
         newRoom = lambdaResponse?.data;
-        console.log('Lambda private chat creation result:', newRoom);
       } catch (lambdaError) {
         console.error('Lambda private chat creation failed:', lambdaError);
       }
 
       // If Lambda failed, try direct model creation
       if (!newRoom) {
-        console.log('Lambda failed, trying direct private chat creation...');
         try {
           const now = new Date().toISOString();
           
@@ -172,14 +165,12 @@ export function AddFriend({ currentUser, onClose, onChatCreated }: AddFriendProp
             ]);
             
             newRoom = createdRoom;
-            console.log('Direct private chat creation succeeded:', newRoom);
           }
         } catch (directError) {
           console.error('Direct private chat creation also failed:', directError);
         }
       }
 
-      console.log('Final private chat room created:', newRoom);
 
       if (newRoom) {
         onChatCreated();

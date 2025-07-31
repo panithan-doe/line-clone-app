@@ -31,7 +31,6 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
       });
       setStep('confirm');
     } catch (err: any) {
-      console.error('SignUp error:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -41,15 +40,11 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
   const handleConfirm = async () => {
     setIsLoading(true);
     setError('');
-    console.log('Starting handleConfirm');
     
     try {
       // Step 1: Confirm sign up
-      console.log('Step 1: Confirming sign up...');
       await confirmSignUp({ username: email, confirmationCode: code });
-      console.log('✅ Sign up confirmed');
 
-      console.log('✅ User registration completed');
       
       // Use callback to refresh auth state instead of page reload
       if (onAuthSuccess) {
@@ -59,7 +54,6 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
       }
       
     } catch (err: any) {
-      console.error('❌ HandleConfirm error:', err);
       setError(err.message || 'An error occurred during confirmation');
     } finally {
       setIsLoading(false);

@@ -20,12 +20,10 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
         await signOut();
       } catch (signOutError) {
         // Ignore sign out errors if no user is signed in
-        console.log('No user to sign out or sign out failed:', signOutError);
       }
       
       // Now attempt to sign in with clean state
       await signIn({ username: email, password });
-      console.log('✅ Sign in successful');
       // Use callback to refresh auth state instead of page reload
       if (onAuthSuccess) {
         onAuthSuccess();

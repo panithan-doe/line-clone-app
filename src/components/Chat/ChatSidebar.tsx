@@ -46,7 +46,6 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
 
   const loadUserProfile = async () => {
     try {
-      console.log('Loading user profile...');
       
       // Use Lambda method (same as UserProfile component)
       let userData = null;
@@ -55,12 +54,10 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
           email: user.attributes.email
         });
         userData = userResponse?.data;
-        console.log('ChatSidebar Lambda user profile result:', userData);
       } catch (error) {
         console.error('ChatSidebar: Error loading user profile via Lambda:', error);
       }
       
-      console.log('ChatSidebar final user data:', userData);
       
       if (userData) {
         setUserDescription(userData.description || '');
@@ -68,15 +65,12 @@ export function ChatSidebar({ chatRooms, selectedRoom, onSelectRoom, onSignOut, 
         
         // Load profile picture if exists
         if (userData.avatar) {
-          console.log('Current user avatar path:', userData.avatar);
           try {
             const { url } = await getUrl({
               key: userData.avatar
             });
             setProfilePicture(url.toString());
-            console.log('Current user avatar URL:', url.toString());
           } catch (err) {
-            console.error('Error loading current user profile picture:', err);
           }
         }
       }
