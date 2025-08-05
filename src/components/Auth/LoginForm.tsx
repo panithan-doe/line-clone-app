@@ -12,8 +12,14 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
   const [password, setPassword] = useState('');
   const [showSignUp, setShowSignUp] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignIn = async () => {
+  const handleSignIn = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    
+    setIsLoading(true);
+    setError('');
+
     try {
       // First, try to sign out any existing session to ensure clean state
       try {
@@ -33,6 +39,7 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
     } catch (err: any) {
       console.error('Sign in error:', err);
       setError(err.message || 'Sign in failed');
+      setIsLoading(false);
     }
   };
 
@@ -50,7 +57,7 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
           <p className="text-gray-600">Connect with friends and family</p>
         </div>
 
-        <div className="space-y-6">
+        <form onSubmit={handleSignIn} className="space-y-6">
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
@@ -76,8 +83,14 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
           {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
           <button
-            onClick={handleSignIn}
-            className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95"
+            type="submit"
+            onClick={handleSignIn || !email || !password}
+            disabled={isLoading}
+            className={`w-full py-3 rounded-2xl font-semibold transition-colors transfrom
+              ${isLoading
+                ? 'bg-green-400 cursor-not-allowed opacity-75 '
+                : 'bg-green-500 hover:bg-green-600 hover:scale-105 active:scale-95'
+              } text-white`}
           >
             Sign In
           </button>
@@ -91,7 +104,7 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
               Create Account
             </button>
           </div>
-        </div>
+        </form>
 
         <div className="mt-8 pt-6 border-t border-gray-200">
           <div className="text-center">

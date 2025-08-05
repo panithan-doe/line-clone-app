@@ -15,7 +15,9 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignUp = async () => {
+  const handleSignUp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
     setIsLoading(true);
     setError('');
     
@@ -37,7 +39,9 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
     }
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
     setIsLoading(true);
     setError('');
     
@@ -74,70 +78,76 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
         <div className="space-y-6">
           {step === 'form' ? (
             <>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+              <form onSubmit={handleSignUp} className="space-y-6">
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="email"
+                    placeholder="Email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    disabled={isLoading}
+                  />
+                </div>
+
+
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
+                <button
+                  type='submit'
+                  onClick={handleSignUp}
                   disabled={isLoading}
-                />
-              </div>
-
-
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
-                  disabled={isLoading}
-                />
-              </div>
-
-              {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-
-              <button
-                onClick={handleSignUp}
-                disabled={isLoading}
-                className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Creating Account...' : 'Sign Up'}
-              </button>
+                  className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Creating Account...' : 'Sign Up'}
+                </button>
+              </form>
             </>
           ) : (
             <>
-              <div className="text-center mb-4">
-                <p className="text-gray-600">
-                  Please check your email for the confirmation code
-                </p>
-              </div>
+              <form onSubmit={handleConfirm} className='space-y-6'>
+                <div className="text-center mb-4">
+                  <p className="text-gray-600">
+                    Please check your email for the confirmation code
+                  </p>
+                </div>
 
-              <div className="relative">
-                <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Confirmation Code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Confirmation Code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+
+                <button
+                  type='submit'
+                  onClick={handleConfirm}
                   disabled={isLoading}
-                />
-              </div>
-
-              {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-
-              <button
-                onClick={handleConfirm}
-                disabled={isLoading}
-                className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Confirming...' : 'Confirm Code'}
-              </button>
+                  className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Confirming...' : 'Confirm Code'}
+                </button>
+              </form>
             </>
           )}
 
