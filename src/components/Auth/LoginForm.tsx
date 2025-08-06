@@ -84,7 +84,6 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
 
           <button
             type="submit"
-            onClick={handleSignIn || !email || !password}
             disabled={isLoading}
             className={`w-full py-3 rounded-2xl font-semibold transition-colors transfrom
               ${isLoading
@@ -92,19 +91,21 @@ export function LoginForm({ onAuthSuccess }: LoginFormProps) {
                 : 'bg-green-500 hover:bg-green-600 hover:scale-105 active:scale-95'
               } text-white`}
           >
-            Sign In
+            {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
 
-          <div className="text-center">
-            <p className="text-gray-600 mb-4">Don't have an account?</p>
-            <button
-              onClick={() => setShowSignUp(true)}
-              className="text-green-500 font-semibold hover:text-green-600 transition-colors"
-            >
-              Create Account
-            </button>
-          </div>
         </form>
+        
+        <div className="text-center space-y-2 mt-6">
+          <p className="text-gray-600">Don't have an account?</p>
+          <button
+            type="button"
+            onClick={() => setShowSignUp(true)}
+            className="text-green-500 font-semibold hover:text-green-600 transition-colors"
+          >
+            Create Account
+          </button>
+        </div>
 
         <div className="mt-8 pt-6 border-t border-gray-200">
           <div className="text-center">

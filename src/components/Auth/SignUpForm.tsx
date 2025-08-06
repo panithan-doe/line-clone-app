@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { signUp, confirmSignUp } from 'aws-amplify/auth';
+import { signUp, confirmSignUp, signIn } from 'aws-amplify/auth';
+import { generateClient } from 'aws-amplify/data';
 import { User, Mail, Lock, Key } from 'lucide-react';
+import type { Schema } from '../../../amplify/data/resource';
 
 interface SignUpFormProps {
   goBack: () => void;
@@ -14,15 +16,19 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
   const [step, setStep] = useState<'form' | 'confirm'>('form');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  const client = generateClient<Schema>();
 
   const handleSignUp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+
+    console.log('client: ', client);
 
     setIsLoading(true);
     setError('');
     
     try {
-      await signUp({
+      const signUpResult = await signUp({
         username: email,
         password,
         options: {
@@ -31,8 +37,12 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
           },
         },
       });
+      
+      console.log('✅ Sign-up successful:', signUpResult);
+      
       setStep('confirm');
     } catch (err: any) {
+      console.error('❌ Sign-up failed:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -47,8 +57,29 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
     
     try {
       // Step 1: Confirm sign up
+      console.log('📨 Confirming sign up...');
       await confirmSignUp({ username: email, confirmationCode: code });
-
+      console.log('✅ Confirmation successful!');
+      
+      // Step 2: Sign in to get authentication token
+      console.log('🔐 Signing in...');
+      await signIn({ username: email, password });
+      console.log('✅ Sign in successful!');
+      
+      // Step 3: Create user record in DynamoDB (now we have auth token)
+      console.log('👤 Creating user record in DynamoDB...');
+      try {
+        const createUserResult = await client.mutations.createUserAccount({
+          email: email,
+          nickname: email // Use email as default nickname
+        });
+        console.log('✅ User created in DynamoDB:', createUserResult);
+      } catch (createError) {
+        console.error('⚠️ Error creating user in DynamoDB:', createError);
+        // Continue with login even if user creation fails
+      }
+      
+      console.log('🔄 Refreshing authentication state...');
       
       // Use callback to refresh auth state instead of page reload
       if (onAuthSuccess) {
@@ -58,6 +89,8 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
       }
       
     } catch (err: any) {
+      console.error('❌ Confirmation failed:', err);
+      console.error('📋 Error details:', JSON.stringify(err, null, 2));
       setError(err.message || 'An error occurred during confirmation');
     } finally {
       setIsLoading(false);
@@ -108,7 +141,6 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
 
                 <button
                   type='submit'
-                  onClick={handleSignUp}
                   disabled={isLoading}
                   className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -141,7 +173,6 @@ export function SignUpForm({ goBack, onAuthSuccess }: SignUpFormProps) {
 
                 <button
                   type='submit'
-                  onClick={handleConfirm}
                   disabled={isLoading}
                   className="w-full bg-green-500 text-white py-3 rounded-2xl font-semibold hover:bg-green-600 transition-colors transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >

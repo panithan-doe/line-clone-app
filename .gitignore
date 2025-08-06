@@ -28,3 +28,7 @@ dist-ssr
 .amplify
 amplify_outputs*
 amplifyconfiguration*
+
+# k6 load test
+.k6-tests
+test

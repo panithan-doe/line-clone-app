@@ -1,7 +1,6 @@
 import { defineBackend } from '@aws-amplify/backend';
-import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
-import { StartingPosition } from 'aws-cdk-lib/aws-lambda';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
+import { Function } from 'aws-cdk-lib/aws-lambda';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
@@ -78,3 +77,20 @@ backend.storage.resources.bucket.grantReadWrite(backend.updateProfileImage.resou
 
 backend.data.resources.tables["User"].grantReadWriteData(backend.userAuth.resources.lambda);
 backend.auth.resources.userPool.grant(backend.userAuth.resources.lambda, 'cognito-idp:AdminGetUser');
+
+// Add DynamoDB permissions to postConfirmation trigger (CDK escape hatch)
+const postConfirmationLambda = backend.auth.resources.userPool.node.tryFindChild('PostConfirmation');
+if (postConfirmationLambda && postConfirmationLambda instanceof Function) {
+  // Grant permissions to list tables and access User table
+  postConfirmationLambda.addToRolePolicy(new PolicyStatement({
+    effect: Effect.ALLOW,
+    actions: [
+      'dynamodb:ListTables',
+      'dynamodb:PutItem',
+      'dynamodb:GetItem'
+    ],
+    resources: ['*'] // Allow access to all DynamoDB tables for listing and specific operations
+  }));
+  
+  console.log('✅ Added DynamoDB permissions to postConfirmation trigger');
+}

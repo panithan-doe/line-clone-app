@@ -947,7 +947,7 @@ export type CreateUserMutationVariables = {
 };
 
 export type CreateUserMutation = {
-  createUser?:  {
+  ใ?:  {
     __typename: "User",
     avatar?: string | null,
     createdAt?: string | null,

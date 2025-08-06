@@ -36,8 +36,7 @@ export function AuthWrapper() {
         attributes,
       };
 
-      // Check if user exists in our database
-      await ensureUserExists(mergedUser);
+      // User should already exist in database (created during sign-up)
 
       setUser(mergedUser);
       setIsAuthenticated(true);
@@ -55,84 +54,6 @@ export function AuthWrapper() {
     }
   };
 
-  const ensureUserExists = async (cognitoUser: any) => {
-    try {
-      // Make sure client is initialized
-      if (!client) {
-        client = generateClient<Schema>();
-      }
-
-      // Try to get or create the user in our database
-      try {
-        
-        // Try Lambda first for user verification (more reliable for user creation flow)
-        let existingUser = null;
-        try {
-          const userResponse = await client.queries.verifyUser({
-            email: cognitoUser.attributes.email
-          });
-          existingUser = userResponse?.data;
-        } catch (lambdaError) {
-          // If Lambda fails, try direct access
-          try {
-            const { data: directUser } = await client.models.User.get({
-              email: cognitoUser.attributes.email
-            });
-            existingUser = directUser;
-          } catch (directError) {
-            // Continue with creation flow
-          }
-        }
-
-        if (!existingUser) {
-          
-          // Try Lambda first as primary method
-          try {
-            const createResult = await client.mutations.createUserAfterAuth({
-              email: cognitoUser.attributes.email,
-              nickname: cognitoUser.attributes.email,
-              
-            });
-          } catch (lambdaError) {
-            // If Lambda fails, try direct model creation as fallback
-            try {
-              const { data: newUser } = await client.models.User.create({
-                email: cognitoUser.attributes.email,
-                nickname: cognitoUser.attributes.email,
-                
-                owner: cognitoUser.attributes.email, // Set owner for authorization
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              });
-            } catch (directError) {
-              throw directError;
-            }
-          }
-        } else {
-        }
-      } catch (getUserError: any) {
-        // If get fails, try to create - this handles the case where user might not exist
-        if (getUserError.message && getUserError.message.includes('not found')) {
-          try {
-            const fallbackResult = await client.mutations.createUserAfterAuth({
-              email: cognitoUser.attributes.email,
-              nickname: cognitoUser.attributes.email, // Use email as default nickname
-              description: ''
-            });
-          } catch (createError: any) {
-            // If creation fails due to duplicate, that's fine - user already exists
-            if (createError.message && createError.message.includes('duplicate')) {
-            } else {
-            }
-          }
-        } else {
-        }
-      }
-      
-    } catch (error) {
-      // Don't throw error here to avoid breaking the login flow
-    }
-  };
 
   const refreshAuth = () => {
     setLoading(true);

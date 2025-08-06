@@ -129,15 +129,14 @@ const schema = a.schema({
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(updateProfileImage)),
 
-  // User authentication and profile management
-  createUserAfterAuth: a
+  // User management
+  createUserAccount: a
     .mutation()
     .arguments({
       email: a.string().required(),
       nickname: a.string().required(),
-      description: a.string(),
     })
-    .returns(a.json())
+    .returns(a.ref('User'))
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(userAuth)),
 
