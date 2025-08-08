@@ -34,45 +34,21 @@ export const handler: AppSyncResolverHandler<CreatePrivateChatInput, ChatRoom> =
   }
   
   try {
-    // 1. Check if private chat already exists between these users
-    const existingChats = await docClient.send(new QueryCommand({
-      TableName: process.env.DYNAMODB_TABLE_CHATROOMEMBER,
-      IndexName: 'userId-index',
-      KeyConditionExpression: 'userId = :currentUserId',
-      ExpressionAttributeValues: {
-        ':currentUserId': currentUserId
-      }
+    // 1. Use deterministic chat ID to avoid expensive lookups
+    const sortedUserIds = [currentUserId, targetUserId].sort();
+    const deterministicChatId = `private_${sortedUserIds[0]}_${sortedUserIds[1]}`.replace(/[@.]/g, '_');
+    
+    // 2. Direct lookup for existing private chat (O(1) instead of O(n))
+    const existingChat = await docClient.send(new GetCommand({
+      TableName: process.env.DYNAMODB_TABLE_CHATROOM,
+      Key: { id: deterministicChatId }
     }));
     
-    // Check if any of the current user's chat rooms also contain the target user
-    for (const membership of existingChats.Items || []) {
-      const chatRoomId = membership.chatRoomId;
-      
-      // Check if this chat room is private and contains the target user
-      const chatRoom = await docClient.send(new GetCommand({
-        TableName: process.env.DYNAMODB_TABLE_CHATROOM,
-        Key: { id: chatRoomId }
-      }));
-      
-      if (chatRoom.Item && chatRoom.Item.type === 'private') {
-        // Check if target user is in this chat room
-        const targetMembership = await docClient.send(new QueryCommand({
-          TableName: process.env.DYNAMODB_TABLE_CHATROOMEMBER,
-          IndexName: 'chatRoomId-userId-index',
-          KeyConditionExpression: 'chatRoomId = :chatRoomId AND userId = :targetUserId',
-          ExpressionAttributeValues: {
-            ':chatRoomId': chatRoomId,
-            ':targetUserId': targetUserId
-          }
-        }));
-        
-        if (targetMembership.Items && targetMembership.Items.length > 0) {
-          return chatRoom.Item as ChatRoom;
-        }
-      }
+    if (existingChat.Item && existingChat.Item.type === 'private') {
+      return existingChat.Item as ChatRoom;
     }
     
-    // 2. Verify both users exist
+    // 3. Verify both users exist (parallel execution)
     const [currentUser, targetUser] = await Promise.all([
       docClient.send(new GetCommand({
         TableName: process.env.DYNAMODB_TABLE_USER,
@@ -88,8 +64,8 @@ export const handler: AppSyncResolverHandler<CreatePrivateChatInput, ChatRoom> =
       throw new Error('One or both users do not exist');
     }
     
-    // 3. Create new private chat room
-    const chatRoomId = randomUUID();
+    // 4. Create new private chat room with deterministic ID
+    const chatRoomId = deterministicChatId;
     const now = new Date().toISOString();
     
     const chatRoom: ChatRoom = {
@@ -103,10 +79,11 @@ export const handler: AppSyncResolverHandler<CreatePrivateChatInput, ChatRoom> =
     
     await docClient.send(new PutCommand({
       TableName: process.env.DYNAMODB_TABLE_CHATROOM,
-      Item: chatRoom
+      Item: chatRoom,
+      ConditionExpression: 'attribute_not_exists(id)' // Prevent duplicate creation
     }));
     
-    // 4. Add both users as members
+    // 5. Add both users as members (parallel execution)
     const currentMembership = {
       id: randomUUID(),
       chatRoomId,

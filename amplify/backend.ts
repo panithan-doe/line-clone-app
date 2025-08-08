@@ -1,6 +1,7 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { Function } from 'aws-cdk-lib/aws-lambda';
+import { CfnUserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
@@ -77,6 +78,16 @@ backend.storage.resources.bucket.grantReadWrite(backend.updateProfileImage.resou
 
 backend.data.resources.tables["User"].grantReadWriteData(backend.userAuth.resources.lambda);
 backend.auth.resources.userPool.grant(backend.userAuth.resources.lambda, 'cognito-idp:AdminGetUser');
+
+// Enable USER_PASSWORD_AUTH flow for load testing
+const userPoolClient = backend.auth.resources.userPoolClient.node.defaultChild as CfnUserPoolClient;
+if (userPoolClient) {
+  userPoolClient.addPropertyOverride('ExplicitAuthFlows', [
+    'ALLOW_USER_PASSWORD_AUTH',
+    'ALLOW_USER_SRP_AUTH',
+    'ALLOW_REFRESH_TOKEN_AUTH'
+  ]);
+}
 
 // Add DynamoDB permissions to postConfirmation trigger (CDK escape hatch)
 const postConfirmationLambda = backend.auth.resources.userPool.node.tryFindChild('PostConfirmation');
