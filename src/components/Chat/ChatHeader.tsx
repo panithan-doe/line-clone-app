@@ -109,13 +109,8 @@ export function ChatHeader({ room, currentUser, onRemoveChat, userRole, onShowGr
         </div>
       </div>
       
-      <div className="flex items-center space-x-2">
-        {/* <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-          <Phone className="w-5 h-5 text-gray-600" />
-        </button>
-        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-          <Video className="w-5 h-5 text-gray-600" />
-        </button> */}
+      {/* <div className="flex items-center space-x-2">
+
         <div className="relative" ref={dropdownRef}>
           <button 
             onClick={() => setShowDropdown(!showDropdown)}
@@ -144,10 +139,10 @@ export function ChatHeader({ room, currentUser, onRemoveChat, userRole, onShowGr
             </div>
           )}
         </div>
-      </div>
+      </div> */}
       
       {/* Confirmation Modal */}
-      {showConfirmModal && (
+      {/* {showConfirmModal && (
         <ConfirmRemoveModal
           room={room}
           onConfirm={handleConfirmRemove}
@@ -155,7 +150,7 @@ export function ChatHeader({ room, currentUser, onRemoveChat, userRole, onShowGr
           loading={removing}
           userRole={userRole}
         />
-      )}
+      )} */}
     </div>
   );
 }
