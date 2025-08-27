@@ -1,0 +1,35 @@
+{
+  "name": "line-clone-load-test",
+  "version": "1.0.0",
+  "description": "Load testing suite for LINE clone chat application",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:mock-auth": "playwright test tests/send-message-mock-auth.spec.js",
+    "generate-data": "node scripts/generate-test-data.js",
+    "install-browsers": "npx playwright install",
+    "build-docker": "docker build -t line-clone-load-test .",
+    "run-docker": "docker run --rm -v $(pwd)/results:/app/results line-clone-load-test"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.48.0",
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "load-test",
+    "playwright",
+    "aws",
+    "chat",
+    "performance"
+  ],
+  "author": "Load Test Team",
+  "license": "MIT"
+}
