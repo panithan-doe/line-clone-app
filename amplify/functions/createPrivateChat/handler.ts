@@ -99,6 +99,7 @@ export const handler: AppSyncResolverHandler<CreatePrivateChatInput, ChatRoom> =
       throw new Error('One or both users do not exist');
     }
     
+    
     // 3. Create new private chat room with proper UUID
     const chatRoomId = randomUUID();
     const now = new Date().toISOString();
