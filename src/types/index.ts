@@ -41,4 +41,9 @@ export interface ChatRoomMember {
   userNickname: string;
   role: 'admin' | 'member';
   joinedAt?: string;
+  // Last Read Position fields for performance optimization
+  lastReadMessageId?: string;  // Last message ID that user has read
+  lastReadAt?: string;         // Timestamp when user last read messages
+  createdAt?: string;
+  updatedAt?: string;
 }

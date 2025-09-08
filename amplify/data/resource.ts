@@ -4,6 +4,8 @@ import { createPrivateChat } from '../functions/createPrivateChat/resource';
 import { createGroupChat } from '../functions/createGroupChat/resource';
 import { updateProfileImage } from '../functions/updateProfileImage/resource';
 import { userAuth } from '../functions/userAuth/resource';
+import { markChatAsRead } from '../functions/markChatAsRead/resource';
+import { getUnreadCounts } from '../functions/getUnreadCounts/resource';
 
 const schema = a.schema({
   User: a
@@ -71,6 +73,11 @@ const schema = a.schema({
       userNickname: a.string().required(),
       role: a.string().default('member'), // 'admin', 'member'
       joinedAt: a.datetime(),
+      // Last Read Position fields for performance optimization
+      lastReadMessageId: a.id(), // Last message ID that user has read
+      lastReadAt: a.datetime(),   // Timestamp when user last read messages
+      createdAt: a.datetime(),
+      updatedAt: a.datetime(),
     })
     .secondaryIndexes((index) => [
       index('chatRoomId').sortKeys(['userId']).name('chatRoomId-userId-index'),
@@ -160,6 +167,28 @@ const schema = a.schema({
     .returns(a.ref('User'))
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(userAuth)),
+
+  // Last Read Position operations for performance optimization
+  markChatAsRead: a
+    .mutation()
+    .arguments({
+      chatRoomId: a.string().required(),
+      userId: a.string().required(),
+      lastMessageId: a.string(),
+    })
+    .returns(a.ref('ChatRoomMember'))
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(markChatAsRead)),
+
+  getUnreadCounts: a
+    .query()
+    .arguments({
+      userId: a.string().required(),
+      chatRoomIds: a.string().array(),
+    })
+    .returns(a.json())
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(getUnreadCounts)),
 
 });
 
