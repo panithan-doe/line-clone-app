@@ -1,10 +1,12 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { AppSyncResolverEvent, AppSyncResolverHandler } from 'aws-lambda';
 import { randomUUID } from 'crypto';
 
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
+const sqsClient = new SQSClient({});
 
 interface SendMessageInput {
   chatRoomId: string;
@@ -27,6 +29,9 @@ interface Message {
 }
 
 export const handler: AppSyncResolverHandler<SendMessageInput, Message> = async (event) => {
+  console.log('🚨🚨🚨 SENDMESSAGE LAMBDA CALLED! 🚨🚨🚨');
+  console.log('📤 Received sendMessage request:', JSON.stringify(event, null, 2));
+  console.log('⏰ Timestamp:', new Date().toISOString());
   
   const { chatRoomId, content, type = 'text', senderId, senderNickname } = event.arguments;
   
@@ -65,25 +70,57 @@ export const handler: AppSyncResolverHandler<SendMessageInput, Message> = async 
       throw new Error('User is not a member of this chat room');
     }
     
-    // 2. Save the message directly to DynamoDB (for immediate response)
-    await docClient.send(new PutCommand({
-      TableName: process.env.DYNAMODB_TABLE_MESSAGE,
-      Item: message
-    }));
+    // 2. Send message to SQS Queue for async processing
+    const messagePayload = {
+      chatRoomId,
+      content,
+      type,
+      senderId,
+      senderNickname,
+      messageId,
+      timestamp: now
+    };
     
-    // 3. Update chat room with last message info
-    await docClient.send(new UpdateCommand({
-      TableName: process.env.DYNAMODB_TABLE_CHATROOM,
-      Key: { id: chatRoomId },
-      UpdateExpression: 'SET lastMessage = :content, lastMessageAt = :timestamp',
-      ExpressionAttributeValues: {
-        ':content': content,
-        ':timestamp': now
-      }
-    }));
-
-    // 4. Trigger subscription by creating the message again through AppSync
-    // This is a workaround to trigger GraphQL subscriptions
+    if (process.env.SQS_MESSAGE_QUEUE_URL) {
+      console.log('📤 Sending message to SQS queue for async processing');
+      
+      // ยิง message เข้า SQS
+      await sqsClient.send(new SendMessageCommand({
+        QueueUrl: process.env.SQS_MESSAGE_QUEUE_URL,
+        MessageBody: JSON.stringify(messagePayload),
+        // Remove FIFO-specific attributes for now to simplify deployment
+        MessageAttributes: {
+          ChatRoomId: {
+            DataType: 'String',
+            StringValue: chatRoomId
+          },
+          MessageId: {
+            DataType: 'String', 
+            StringValue: messageId
+          }
+        }
+      }));
+      
+      console.log('✅ Message sent to SQS successfully');
+    } else {
+      // Fallback: Direct database save if SQS is not configured
+      console.log('⚠️ SQS not configured, falling back to direct database save');
+      
+      await docClient.send(new PutCommand({
+        TableName: process.env.DYNAMODB_TABLE_MESSAGE,
+        Item: message
+      }));
+      
+      await docClient.send(new UpdateCommand({
+        TableName: process.env.DYNAMODB_TABLE_CHATROOM,
+        Key: { id: chatRoomId },
+        UpdateExpression: 'SET lastMessage = :content, lastMessageAt = :timestamp',
+        ExpressionAttributeValues: {
+          ':content': content,
+          ':timestamp': now
+        }
+      }));
+    }
     
     return message;
     

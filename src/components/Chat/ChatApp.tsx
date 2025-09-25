@@ -620,49 +620,56 @@ export function ChatApp({ user }: ChatAppProps) {
       } catch (err) {
       }
       
-      // Use direct AppSync model creation to ensure subscriptions trigger properly
+      // Strategy: Lambda first (better for heavy load), direct access fallback
       
       let finalMessage = null;
       
       try {
-        // Create message directly via AppSync model (this WILL trigger subscriptions)
-        const { data: directMessage } = await client.models.Message.create({
-          content,
-          type: "text",
+        // Priority 1: Try Lambda first (preferred for heavy load and better scaling)
+        const messageResponse = await client.mutations.sendMessage({
           chatRoomId: selectedRoom.id,
+          content: content,
+          type: "text",
           senderId: user.attributes.email,
-          senderNickname: currentUserNickname,
-          isRead: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          senderNickname: currentUserNickname
         });
         
-        finalMessage = directMessage;
+        finalMessage = messageResponse?.data;
+        console.log('✅ Message sent via Lambda successfully');
         
-        // Update ChatRoom's lastMessage
+      } catch (lambdaError) {
+        console.log('⚠️ Lambda sendMessage failed, falling back to direct access:', lambdaError);
+        
+        // Priority 2: Fallback to direct AppSync model creation
         try {
-          await client.models.ChatRoom.update({
-            id: selectedRoom.id,
-            lastMessage: content,
-            lastMessageAt: new Date().toISOString()
-          });
-        } catch (updateError) {
-        }
-        
-      } catch (directError) {
-        
-        // Fallback to Lambda if direct creation fails
-        try {
-          const messageResponse = await client.mutations.sendMessage({
-            chatRoomId: selectedRoom.id,
-            content: content,
+          const { data: directMessage } = await client.models.Message.create({
+            content,
             type: "text",
+            chatRoomId: selectedRoom.id,
             senderId: user.attributes.email,
-            senderNickname: currentUserNickname
+            senderNickname: currentUserNickname,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           });
           
-          finalMessage = messageResponse?.data;
-        } catch (lambdaError) {
+          finalMessage = directMessage;
+          console.log('✅ Message sent via direct access successfully');
+          
+          // Update ChatRoom's lastMessage manually (Lambda handles this automatically)
+          try {
+            await client.models.ChatRoom.update({
+              id: selectedRoom.id,
+              lastMessage: content,
+              lastMessageAt: new Date().toISOString()
+            });
+          } catch (updateError) {
+            console.log('⚠️ Failed to update ChatRoom lastMessage:', updateError);
+          }
+          
+        } catch (directError) {
+          console.error('❌ Both Lambda and direct access failed:', { lambdaError, directError });
+          throw new Error('Failed to send message via both methods');
         }
       }
 

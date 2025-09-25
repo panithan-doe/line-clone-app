@@ -2,6 +2,9 @@ import { defineBackend } from '@aws-amplify/backend';
 import { PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import { Function } from 'aws-cdk-lib/aws-lambda';
 import { CfnUserPoolClient } from 'aws-cdk-lib/aws-cognito';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
+import { Duration } from 'aws-cdk-lib';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
@@ -10,6 +13,7 @@ import { createPrivateChat } from './functions/createPrivateChat/resource';
 import { createGroupChat } from './functions/createGroupChat/resource';
 import { updateProfileImage } from './functions/updateProfileImage/resource';
 import { userAuth } from './functions/userAuth/resource';
+import { messageProcessor } from './functions/messageProcessor/resource';
 
 export const backend = defineBackend({
   auth,
@@ -19,7 +23,8 @@ export const backend = defineBackend({
   createPrivateChat,
   createGroupChat,
   updateProfileImage,
-  userAuth
+  userAuth,
+  messageProcessor
 });
 
 
@@ -41,6 +46,9 @@ backend.updateProfileImage.addEnvironment('S3_BUCKET_NAME', backend.storage.reso
 
 backend.userAuth.addEnvironment('DYNAMODB_TABLE_USER', backend.data.resources.tables["User"].tableName);
 backend.userAuth.addEnvironment('USER_POOL_ID', backend.auth.resources.userPool.userPoolId);
+
+backend.messageProcessor.addEnvironment('DYNAMODB_TABLE_MESSAGE', backend.data.resources.tables["Message"].tableName);
+backend.messageProcessor.addEnvironment('DYNAMODB_TABLE_CHATROOM', backend.data.resources.tables["ChatRoom"].tableName);
 
 // Grant Lambda functions permissions to access DynamoDB tables
 backend.data.resources.tables["Message"].grantReadWriteData(backend.sendMessage.resources.lambda);
@@ -79,6 +87,9 @@ backend.storage.resources.bucket.grantReadWrite(backend.updateProfileImage.resou
 backend.data.resources.tables["User"].grantReadWriteData(backend.userAuth.resources.lambda);
 backend.auth.resources.userPool.grant(backend.userAuth.resources.lambda, 'cognito-idp:AdminGetUser');
 
+backend.data.resources.tables["Message"].grantReadWriteData(backend.messageProcessor.resources.lambda);
+backend.data.resources.tables["ChatRoom"].grantReadWriteData(backend.messageProcessor.resources.lambda);
+
 // Enable USER_PASSWORD_AUTH flow for load testing
 const userPoolClient = backend.auth.resources.userPoolClient.node.defaultChild as CfnUserPoolClient;
 if (userPoolClient) {
@@ -105,3 +116,48 @@ if (postConfirmationLambda && postConfirmationLambda instanceof Function) {
   
   console.log('✅ Added DynamoDB permissions to postConfirmation trigger');
 }
+
+// Create a simple custom stack for SQS
+const sqsStack = backend.createStack('SqsStack');
+
+// Create Dead Letter Queue first (let AWS generate unique names)
+const messageDLQ = new sqs.Queue(sqsStack, 'MessageDLQ', {
+  retentionPeriod: Duration.days(14),
+  encryption: sqs.QueueEncryption.SQS_MANAGED
+});
+
+// Create main message processing queue with DLQ (Standard queue for simplicity)
+const messageQueue = new sqs.Queue(sqsStack, 'MessageQueue', {
+  visibilityTimeout: Duration.seconds(30), // 6x Lambda timeout
+  retentionPeriod: Duration.days(14),
+  encryption: sqs.QueueEncryption.SQS_MANAGED,
+  deadLetterQueue: {
+    queue: messageDLQ,
+    maxReceiveCount: 3 // Retry 3 times before moving to DLQ
+  }
+});
+
+// Connect SQS Queue to messageProcessor Lambda
+backend.messageProcessor.resources.lambda.addEventSource(
+  new lambdaEventSources.SqsEventSource(messageQueue, {
+    batchSize: 10, // Process up to 10 messages at once
+    maxBatchingWindow: Duration.seconds(5), // Wait max 5 seconds to collect batch
+    reportBatchItemFailures: true // Enable partial batch failure reporting
+  })
+);
+
+// Grant SQS permissions to messageProcessor Lambda
+messageQueue.grantConsumeMessages(backend.messageProcessor.resources.lambda);
+messageDLQ.grantConsumeMessages(backend.messageProcessor.resources.lambda);
+
+// Grant SQS send permissions to sendMessage Lambda and add environment variable
+messageQueue.grantSendMessages(backend.sendMessage.resources.lambda);
+backend.sendMessage.addEnvironment('SQS_MESSAGE_QUEUE_URL', messageQueue.queueUrl);
+
+// Store queue references for Lambda functions to access
+export const queueResources = {
+  messageQueue,
+  messageDLQ
+};
+
+console.log('✅ Created SQS Message Queue and DLQ with Lambda trigger');

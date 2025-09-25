@@ -1,5 +1,5 @@
-# Use AWS Lambda Node.js 20 base image
-FROM public.ecr.aws/lambda/nodejs:20
+# Use AWS Lambda Node.js 20 base image with x86_64 architecture
+FROM --platform=linux/amd64 public.ecr.aws/lambda/nodejs:20
 
 # Install system dependencies for Playwright
 RUN dnf update -y && \
@@ -18,14 +18,14 @@ RUN dnf update -y && \
 COPY package*.json ./
 
 # Install Node.js dependencies
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
-# Install Playwright
-RUN npx playwright install chromium --with-deps
+# Install Playwright browsers and set environment
+ENV PLAYWRIGHT_BROWSERS_PATH=/var/task/.playwright
+RUN npx playwright install chromium
 
 # Copy function code
 COPY index.js ./
-COPY playwright-script.js ./
 
 # Set the Lambda handler
 CMD [ "index.handler" ]
