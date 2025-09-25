@@ -1,0 +1,25 @@
+{
+  "name": "line-load-test-orchestrator",
+  "version": "1.0.0",
+  "description": "Load testing orchestrator for LINE Clone application",
+  "main": "orchestrator.js",
+  "type": "module",
+  "scripts": {
+    "test-10": "node orchestrator.js 10 30",
+    "test-50": "node orchestrator.js 50 60",
+    "test-100": "node orchestrator.js 100 60",
+    "test-custom": "node orchestrator.js",
+    "install": "npm install"
+  },
+  "dependencies": {
+    "@aws-sdk/client-lambda": "^3.891.0"
+  },
+  "keywords": [
+    "load-testing",
+    "playwright",
+    "aws-lambda",
+    "line-clone"
+  ],
+  "author": "",
+  "license": "ISC"
+}
