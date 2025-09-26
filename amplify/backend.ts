@@ -47,8 +47,10 @@ backend.updateProfileImage.addEnvironment('S3_BUCKET_NAME', backend.storage.reso
 backend.userAuth.addEnvironment('DYNAMODB_TABLE_USER', backend.data.resources.tables["User"].tableName);
 backend.userAuth.addEnvironment('USER_POOL_ID', backend.auth.resources.userPool.userPoolId);
 
+// messageProcessor calls AppSync GraphQL mutations
 backend.messageProcessor.addEnvironment('DYNAMODB_TABLE_MESSAGE', backend.data.resources.tables["Message"].tableName);
 backend.messageProcessor.addEnvironment('DYNAMODB_TABLE_CHATROOM', backend.data.resources.tables["ChatRoom"].tableName);
+backend.messageProcessor.addEnvironment('APPSYNC_ENDPOINT', `https://${backend.data.resources.graphqlApi.apiId}.appsync.${backend.data.resources.graphqlApi.env.region}.amazonaws.com/graphql`);
 
 // Grant Lambda functions permissions to access DynamoDB tables
 backend.data.resources.tables["Message"].grantReadWriteData(backend.sendMessage.resources.lambda);
@@ -89,6 +91,13 @@ backend.auth.resources.userPool.grant(backend.userAuth.resources.lambda, 'cognit
 
 backend.data.resources.tables["Message"].grantReadWriteData(backend.messageProcessor.resources.lambda);
 backend.data.resources.tables["ChatRoom"].grantReadWriteData(backend.messageProcessor.resources.lambda);
+
+// Grant messageProcessor permissions to call AppSync mutations
+backend.messageProcessor.resources.lambda.addToRolePolicy(new PolicyStatement({
+  effect: Effect.ALLOW,
+  actions: ['appsync:GraphQL'],
+  resources: [`${backend.data.resources.graphqlApi.arn}/*`]
+}));
 
 // Enable USER_PASSWORD_AUTH flow for load testing
 const userPoolClient = backend.auth.resources.userPoolClient.node.defaultChild as CfnUserPoolClient;

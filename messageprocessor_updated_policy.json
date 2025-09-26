@@ -1,0 +1,67 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:ap-southeast-1:756021455565:table/Message-p7sumjaxcvdobepjk2eck6v56y-NONE"
+            ],
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable"
+            ],
+            "Resource": [
+                "arn:aws:dynamodb:ap-southeast-1:756021455565:table/ChatRoom-p7sumjaxcvdobepjk2eck6v56y-NONE"
+            ],
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "sqs:ReceiveMessage",
+                "sqs:ChangeMessageVisibility",
+                "sqs:GetQueueUrl",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes"
+            ],
+            "Resource": "arn:aws:sqs:ap-southeast-1:756021455565:amplify-d3i99hvdc3wo2j-main-branch-c8a1281d7c--MessageQueue7A3BF959-VKiZPLlblt1m",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "sqs:ReceiveMessage",
+                "sqs:ChangeMessageVisibility",
+                "sqs:GetQueueUrl",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes"
+            ],
+            "Resource": "arn:aws:sqs:ap-southeast-1:756021455565:amplify-d3i99hvdc3wo2j-main-branch-c8a1281d7c-Sq-MessageDLQ9DC2574C-6uFPAPQyK2p5",
+            "Effect": "Allow"
+        }
+    ]
+}

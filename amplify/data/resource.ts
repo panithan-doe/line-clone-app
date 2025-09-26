@@ -6,6 +6,7 @@ import { updateProfileImage } from '../functions/updateProfileImage/resource';
 import { userAuth } from '../functions/userAuth/resource';
 import { markChatAsRead } from '../functions/markChatAsRead/resource';
 import { getUnreadCounts } from '../functions/getUnreadCounts/resource';
+import { messageProcessor } from '../functions/messageProcessor/resource';
 
 const schema = a.schema({
   User: a
@@ -190,7 +191,7 @@ const schema = a.schema({
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(getUnreadCounts)),
 
-});
+}).authorization((allow) => [allow.authenticated()]);
 
 export type Schema = ClientSchema<typeof schema>;
 
