@@ -49,15 +49,6 @@ backend.userAuth.addEnvironment('USER_POOL_ID', backend.auth.resources.userPool.
 
 backend.messageProcessor.addEnvironment('DYNAMODB_TABLE_MESSAGE', backend.data.resources.tables["Message"].tableName);
 backend.messageProcessor.addEnvironment('DYNAMODB_TABLE_CHATROOM', backend.data.resources.tables["ChatRoom"].tableName);
-// messageProcessor calls AppSync GraphQL mutations
-backend.messageProcessor.addEnvironment('APPSYNC_ENDPOINT', `https://${backend.data.resources.graphqlApi.apiId}.appsync-api.${backend.data.resources.graphqlApi.env.region}.amazonaws.com/graphql`);
-
-// Grant messageProcessor permissions to call AppSync mutations
-backend.messageProcessor.resources.lambda.addToRolePolicy(new PolicyStatement({
-  effect: Effect.ALLOW,
-  actions: ['appsync:GraphQL'],
-  resources: [`${backend.data.resources.graphqlApi.arn}/*`]
-}));
 
 // Grant Lambda functions permissions to access DynamoDB tables
 backend.data.resources.tables["Message"].grantReadWriteData(backend.sendMessage.resources.lambda);

@@ -15,7 +15,15 @@ This is a LINE-clone chat application built with React, TypeScript, Vite, and AW
 - `npm run preview` - Preview the production build locally
 
 ### AWS Amplify Backend
-- `npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID` - Deploy Amplify backend resources
+- `npx ampx sandbox` - Deploy to personal cloud sandbox (watches for changes)
+- `npx ampx sandbox --once` - Single sandbox deployment without watching
+- `npx ampx sandbox delete` - Delete personal cloud sandbox
+- `npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID` - Deploy Amplify backend resources in CI/CD
+- `npx ampx generate outputs` - Generate backend outputs file (amplify_outputs.json)
+- `npx ampx generate graphql-client-code` - Generate GraphQL statements and types
+- `npx ampx sandbox secret set <secret-name>` - Set backend secrets
+- `npx ampx sandbox secret list` - List backend secrets
+- `npx ampx info` - Generate system and environment information for troubleshooting
 
 ## Architecture
 
