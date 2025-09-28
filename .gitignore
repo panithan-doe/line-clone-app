@@ -33,3 +33,4 @@ amplifyconfiguration*
 k6-tests/
 .k6-tests
 test
+data
