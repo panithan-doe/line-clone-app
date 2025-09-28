@@ -122,14 +122,14 @@ const sqsStack = backend.createStack('SqsStack');
 
 // Create Dead Letter Queue first
 const messageDLQ = new sqs.Queue(sqsStack, 'MessageDLQ', {
-  queueName: 'line-clone-message-dlq',
+  // Remove hardcoded queueName to avoid conflicts between environments
   retentionPeriod: Duration.days(14),
   encryption: sqs.QueueEncryption.SQS_MANAGED
 });
 
 // Create main message processing queue with DLQ (Standard queue for simplicity)
 const messageQueue = new sqs.Queue(sqsStack, 'MessageQueue', {
-  queueName: 'line-clone-message-queue',
+  // Remove hardcoded queueName to avoid conflicts between environments
   visibilityTimeout: Duration.seconds(30), // 6x Lambda timeout
   retentionPeriod: Duration.days(14),
   encryption: sqs.QueueEncryption.SQS_MANAGED,
