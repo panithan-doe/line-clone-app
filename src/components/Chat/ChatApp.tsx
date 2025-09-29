@@ -53,7 +53,7 @@ export function ChatApp({ user }: ChatAppProps) {
       otherUserAvatar: amplifyRoom.otherUserAvatar || null,
       otherUserId: amplifyRoom.otherUserId || null,
     };
-  };
+  }; 
 
   // Fetch unread message counts for all chat rooms
   const fetchUnreadCounts = async (roomIds: string[]) => {
