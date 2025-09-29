@@ -91,6 +91,17 @@ backend.auth.resources.userPool.grant(backend.userAuth.resources.lambda, 'cognit
 backend.data.resources.tables["Message"].grantReadWriteData(backend.messageProcessor.resources.lambda);
 backend.data.resources.tables["ChatRoom"].grantReadWriteData(backend.messageProcessor.resources.lambda);
 
+// Grant messageProcessor permission to invoke AppSync GraphQL API
+backend.messageProcessor.resources.lambda.addToRolePolicy(new PolicyStatement({
+  effect: Effect.ALLOW,
+  actions: [
+    'appsync:GraphQL'
+  ],
+  resources: [
+    `${backend.data.resources.graphqlApi.arn}/*`
+  ]
+}));
+
 // Enable USER_PASSWORD_AUTH flow for load testing
 const userPoolClient = backend.auth.resources.userPoolClient.node.defaultChild as CfnUserPoolClient;
 if (userPoolClient) {
@@ -142,14 +153,13 @@ const messageQueue = new sqs.Queue(sqsStack, 'MessageQueue', {
 });
 
 // Connect SQS Queue to messageProcessor Lambda (Optimized for high concurrency)
-// Temporarily comment out to resolve CloudFormation conflict
-// backend.messageProcessor.resources.lambda.addEventSource(
-//   new lambdaEventSources.SqsEventSource(messageQueue, {
-//     batchSize: 10, // Process 10 messages per batch for efficiency
-//     maxBatchingWindow: Duration.seconds(1), // Wait max 1 second (balance between throughput and latency)
-//     reportBatchItemFailures: true // Enable partial batch failure reporting
-//   })
-// );
+backend.messageProcessor.resources.lambda.addEventSource(
+  new lambdaEventSources.SqsEventSource(messageQueue, {
+    batchSize: 10, // Process 10 messages per batch for efficiency
+    maxBatchingWindow: Duration.seconds(1), // Wait max 1 second (balance between throughput and latency)
+    reportBatchItemFailures: true // Enable partial batch failure reporting
+  })
+);
 
 // Grant SQS permissions to messageProcessor Lambda
 messageQueue.grantConsumeMessages(backend.messageProcessor.resources.lambda);
