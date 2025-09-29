@@ -49,6 +49,7 @@ backend.userAuth.addEnvironment('USER_POOL_ID', backend.auth.resources.userPool.
 
 backend.messageProcessor.addEnvironment('DYNAMODB_TABLE_MESSAGE', backend.data.resources.tables["Message"].tableName);
 backend.messageProcessor.addEnvironment('DYNAMODB_TABLE_CHATROOM', backend.data.resources.tables["ChatRoom"].tableName);
+backend.messageProcessor.addEnvironment('APPSYNC_ENDPOINT', backend.data.graphqlUrl);
 
 // Grant Lambda functions permissions to access DynamoDB tables
 backend.data.resources.tables["Message"].grantReadWriteData(backend.sendMessage.resources.lambda);
@@ -127,23 +128,24 @@ const messageDLQ = new sqs.Queue(sqsStack, 'MessageDLQ', {
   encryption: sqs.QueueEncryption.SQS_MANAGED
 });
 
-// Create main message processing queue with DLQ (Standard queue for simplicity)
+// Create main message processing queue with DLQ (Optimized for high throughput)
 const messageQueue = new sqs.Queue(sqsStack, 'MessageQueue', {
   // Remove hardcoded queueName to avoid conflicts between environments
-  visibilityTimeout: Duration.seconds(30), // 6x Lambda timeout
+  visibilityTimeout: Duration.seconds(180), // 6x Lambda timeout (30s * 6)
   retentionPeriod: Duration.days(14),
   encryption: sqs.QueueEncryption.SQS_MANAGED,
+  receiveMessageWaitTime: Duration.seconds(20), // Long polling for efficiency
   deadLetterQueue: {
     queue: messageDLQ,
     maxReceiveCount: 3 // Retry 3 times before moving to DLQ
   }
 });
 
-// Connect SQS Queue to messageProcessor Lambda
+// Connect SQS Queue to messageProcessor Lambda (Optimized for high concurrency)
 backend.messageProcessor.resources.lambda.addEventSource(
   new lambdaEventSources.SqsEventSource(messageQueue, {
-    batchSize: 10, // Process up to 10 messages at once
-    maxBatchingWindow: Duration.seconds(5), // Wait max 5 seconds to collect batch
+    batchSize: 10, // Process 10 messages per batch for efficiency
+    maxBatchingWindow: Duration.seconds(1), // Wait max 1 second (balance between throughput and latency)
     reportBatchItemFailures: true // Enable partial batch failure reporting
   })
 );
