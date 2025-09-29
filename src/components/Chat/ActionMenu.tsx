@@ -20,7 +20,7 @@ export function ActionMenu({ onAddFriend, onCreateGroup, onClose }: ActionMenuPr
             <X className="w-5 h-5" />
           </button>
         </div>
-
+        {/* <div></div> */}
         <div className="space-y-3">
           <button
             onClick={onAddFriend}
