@@ -437,18 +437,23 @@ export function ChatApp({ user }: ChatAppProps) {
     }
   };
 
-  // Fetch messages for selected room
+  // Fetch messages for selected room (Load recent messages only - real-world approach)
   const fetchMessages = async (roomId: string) => {
     try {
+      // Real-world approach: Load only recent 100 messages initially
+      // For older messages, implement "Load More" button or infinite scroll
       const { data: roomMessages } = await client.models.Message.list({
         filter: {
           chatRoomId: {
             eq: roomId
           }
-        }
+        },
+        limit: 100 // Load recent 100 messages (industry standard)
+        // TODO: Add sorting by createdAt DESC when Amplify Gen 2 supports it
+        // sort: { createdAt: 'DESC' }
       });
       
-      // Convert to Message type and sort by creation time
+      // Convert to Message type and sort by creation time (oldest first for chat display)
       const convertedMessages = roomMessages
         .map(msg => convertToMessage(msg))
         .sort(
