@@ -142,13 +142,14 @@ const messageQueue = new sqs.Queue(sqsStack, 'MessageQueue', {
 });
 
 // Connect SQS Queue to messageProcessor Lambda (Optimized for high concurrency)
-backend.messageProcessor.resources.lambda.addEventSource(
-  new lambdaEventSources.SqsEventSource(messageQueue, {
-    batchSize: 10, // Process 10 messages per batch for efficiency
-    maxBatchingWindow: Duration.seconds(1), // Wait max 1 second (balance between throughput and latency)
-    reportBatchItemFailures: true // Enable partial batch failure reporting
-  })
-);
+// Temporarily comment out to resolve CloudFormation conflict
+// backend.messageProcessor.resources.lambda.addEventSource(
+//   new lambdaEventSources.SqsEventSource(messageQueue, {
+//     batchSize: 10, // Process 10 messages per batch for efficiency
+//     maxBatchingWindow: Duration.seconds(1), // Wait max 1 second (balance between throughput and latency)
+//     reportBatchItemFailures: true // Enable partial batch failure reporting
+//   })
+// );
 
 // Grant SQS permissions to messageProcessor Lambda
 messageQueue.grantConsumeMessages(backend.messageProcessor.resources.lambda);
