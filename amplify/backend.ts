@@ -152,8 +152,10 @@ const messageQueue = new sqs.Queue(sqsStack, 'MessageQueue', {
   }
 });
 
-// Connect SQS Queue to messageProcessor Lambda (Force CloudFormation to create new EventSourceMapping)
-// Changed structure to trigger CloudFormation CREATE instead of UPDATE
+// Connect SQS Queue to messageProcessor Lambda (Temporarily commented out to fix CloudFormation corruption)
+// AWS Knowledge Center recommended fix: Remove EventSourceMapping, deploy, then re-add
+// Step 1: Comment out EventSourceMapping and deploy to clean corrupted state
+/*
 const messageProcessorSqsEventSource = new lambdaEventSources.SqsEventSource(messageQueue, {
   batchSize: 10, // Process 10 messages per batch for efficiency  
   maxBatchingWindow: Duration.seconds(1), // Wait max 1 second (balance between throughput and latency)
@@ -162,6 +164,7 @@ const messageProcessorSqsEventSource = new lambdaEventSources.SqsEventSource(mes
 
 // Add the event source with new logical ID structure
 backend.messageProcessor.resources.lambda.addEventSource(messageProcessorSqsEventSource);
+*/
 
 // Grant SQS permissions to messageProcessor Lambda
 messageQueue.grantConsumeMessages(backend.messageProcessor.resources.lambda);
